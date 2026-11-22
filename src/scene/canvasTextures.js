@@ -9,18 +9,19 @@ const IS_MOBILE_TEX = typeof window !== 'undefined' && (window.innerWidth <= 900
 
 function makeCanvasTexture(canvas, srgb = true, allowDownscale = true) {
   let source = canvas;
-  // 手機裝置自動將超大靜態貼圖（>= 1024px）壓縮至 512px 級別，節省 75% GPU 記憶體並大幅加速啟動！
-  if (IS_MOBILE_TEX && allowDownscale && (canvas.width >= 1024 || canvas.height >= 1024)) {
-    const scale = 512 / Math.max(canvas.width, canvas.height);
+  // 手機裝置自動將較大靜態貼圖（> 384px）等比縮放至 384px 級別，大幅節省手機 GPU 記憶體並防止 WebGL OOM 閃退！
+  const maxDim = Math.max(canvas.width, canvas.height);
+  if (IS_MOBILE_TEX && allowDownscale && maxDim > 384) {
+    const scale = 384 / maxDim;
     const small = document.createElement('canvas');
-    small.width = Math.max(128, Math.round(canvas.width * scale));
-    small.height = Math.max(128, Math.round(canvas.height * scale));
+    small.width = Math.max(64, Math.round(canvas.width * scale));
+    small.height = Math.max(64, Math.round(canvas.height * scale));
     small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
     source = small;
   }
   const tex = new THREE.CanvasTexture(source);
   if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = IS_MOBILE_TEX ? 2 : 6;
+  tex.anisotropy = IS_MOBILE_TEX ? 1 : 6;
   tex.needsUpdate = true;
   return tex;
 }

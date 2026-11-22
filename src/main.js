@@ -191,6 +191,7 @@ async function initApp() {
   };
 
   // 1. 初始化 RPG 劇情引導與底部即時聊天條
+  updatePlayerHud();
   rpgNarrator = new RPGNarratorUI(rpgRoot);
   worldChatBar = new WorldChatBarUI(worldChatRoot, {
     onSpeak: (text) => sceneCtrl.showPlayerBubble(text)
@@ -216,7 +217,13 @@ async function initApp() {
       if (modalsUI?.chantActive) modalsUI.stopChantingMode(false);
       soundEngine.setMusicDucking(1.0);
     },
-    onBroadcastPresence: (pose) => storageSync.broadcastPresence(pose)
+    onBroadcastPresence: (pose) => storageSync.broadcastPresence(pose),
+    onWebGLContextLost: () => {
+      window.__showTempleLoaderError?.(
+        '手機 3D 畫面記憶體暫時重置',
+        '您的手機系統剛才回收了 3D 繪圖資源。點擊下方按鈕即可立即重新載入德慈宮（您的功德與進度已自動存檔）！'
+      );
+    }
   });
 
   await sceneCtrl.initAsync(initialSceneState, (pct, msg) => {
@@ -527,7 +534,20 @@ async function initApp() {
 const bootTempleApp = () => {
   initApp().catch((err) => {
     console.error('[DeciTemple] initApp error:', err);
-    window.__finishTempleLoader?.();
+    const isWebGL = err?.code === 'WEBGL_UNAVAILABLE' || /webgl/i.test(String(err?.message || ''));
+    if (isWebGL) {
+      window.__showTempleLoaderError?.(
+        '手機瀏覽器暫時停用 3D 繪圖（WebGL）',
+        '若您剛才遇過畫面閃退，Chrome 可能會暫時鎖定該分頁的 3D 加速。<br/>請<b>關閉此分頁（或重開 Chrome 瀏覽器）</b>後再重新進入，即可恢復流暢的 3D 德慈宮！',
+        err?.message || 'WebGL context creation failed'
+      );
+    } else {
+      window.__showTempleLoaderError?.(
+        '3D 廟宇場景初始化發生異常',
+        '請先嘗試重新整理頁面；若持續發生，建議清除此頁快取或改用最新版本的 Chrome／Safari 開啟。',
+        err?.message || String(err)
+      );
+    }
   });
 };
 

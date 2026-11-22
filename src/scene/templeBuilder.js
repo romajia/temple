@@ -104,8 +104,12 @@ export function buildDeciTemple(scene, initialState = {}) {
       if (matMap.has(mat)) return matMap.get(mat);
       const cloned = mat.clone();
       const baseOp = cloned.opacity ?? 1.0;
-      cloned.transparent = true;
+      const baseTransparent = Boolean(cloned.transparent || baseOp < 0.99);
+      cloned.userData = { ...(cloned.userData || {}), baseOpacity: baseOp, baseTransparent };
+      // ★ 關鍵 GPU 效能優化：未遮擋時維持不透明（transparent = false）啟用硬體 Early-Z 深度剔除，消除手機過度繪製崩潰！
+      cloned.transparent = baseTransparent;
       cloned.opacity = baseOp;
+      cloned.depthWrite = !baseTransparent || baseOp > 0.85;
       matMap.set(mat, cloned);
       return cloned;
     };

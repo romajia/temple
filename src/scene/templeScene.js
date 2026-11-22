@@ -123,16 +123,53 @@ export class TempleSceneController {
   }
 
   _initRenderer() {
-    const maxDpr = this.isMobileDevice ? 1.15 : 1.5;
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.isMobileDevice,
-      powerPreference: this.isMobileDevice ? 'default' : 'high-performance',
-      precision: this.isMobileDevice ? 'mediump' : 'highp'
-    });
+    const maxDpr = this.isMobileDevice ? 1.0 : 1.5;
+    const attempts = [
+      {
+        antialias: !this.isMobileDevice,
+        powerPreference: this.isMobileDevice ? 'default' : 'high-performance',
+        alpha: false,
+        stencil: false,
+        failIfMajorPerformanceCaveat: false
+      },
+      {
+        antialias: false,
+        powerPreference: 'low-power',
+        alpha: false,
+        stencil: false,
+        depth: true,
+        failIfMajorPerformanceCaveat: false
+      }
+    ];
+
+    let created = null;
+    let lastErr = null;
+    for (const opts of attempts) {
+      try {
+        created = new THREE.WebGLRenderer(opts);
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    if (!created) {
+      const err = new Error(lastErr?.message || 'Error creating WebGL context');
+      err.code = 'WEBGL_UNAVAILABLE';
+      throw err;
+    }
+
+    this.renderer = created;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = this.isMobileDevice ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    this.renderer.setSize(
+      Math.max(1, this.container.clientWidth || window.innerWidth),
+      Math.max(1, this.container.clientHeight || window.innerHeight)
+    );
+    // ★ 手機關閉即時陰影雙倍渲染（GPU 負擔立降 50% 以上、徹底告別中階機過熱與 WebGL 閃退），桌機維持柔和陰影！
+    this.renderer.shadowMap.enabled = !this.isMobileDevice;
+    if (!this.isMobileDevice) {
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.94;
     this.container.appendChild(this.renderer.domElement);
@@ -141,8 +178,10 @@ export class TempleSceneController {
     this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
       console.warn('[DeciTemple] WebGL context lost, awaiting restore...');
+      this.callbacks.onWebGLContextLost?.();
     }, false);
     this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.callbacks.onWebGLContextRestored?.();
       this.renderer.render(this.scene, this.camera);
     }, false);
   }
@@ -160,30 +199,33 @@ export class TempleSceneController {
       pmrem.dispose();
     }
 
+    const w = Math.max(1, this.container.clientWidth || window.innerWidth);
+    const h = Math.max(1, this.container.clientHeight || window.innerHeight);
     this.camera = new THREE.PerspectiveCamera(
       TEMPLE_CONFIG.camera.fov || 35,
-      this.container.clientWidth / this.container.clientHeight,
+      w / h,
       0.3,
       220
     );
 
-    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, this.isMobileDevice ? 0.95 : 0.76);
+    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, this.isMobileDevice ? 1.02 : 0.76);
     this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xFFF0D4, 1.48);
+    const sun = new THREE.DirectionalLight(0xFFF0D4, this.isMobileDevice ? 1.38 : 1.48);
     sun.position.set(22, 36, 24);
-    sun.castShadow = true;
-    const shadowRes = this.isMobileDevice ? 512 : 1536;
-    sun.shadow.mapSize.set(shadowRes, shadowRes);
-    sun.shadow.radius = 2.6;
-    sun.shadow.camera.near = 2;
-    sun.shadow.camera.far = 105;
-    sun.shadow.camera.left = -36;
-    sun.shadow.camera.right = 36;
-    sun.shadow.camera.top = 36;
-    sun.shadow.camera.bottom = -36;
-    sun.shadow.bias = -0.0003;
-    sun.shadow.normalBias = 0.035;
+    sun.castShadow = !this.isMobileDevice;
+    if (!this.isMobileDevice) {
+      sun.shadow.mapSize.set(1536, 1536);
+      sun.shadow.radius = 2.6;
+      sun.shadow.camera.near = 2;
+      sun.shadow.camera.far = 105;
+      sun.shadow.camera.left = -36;
+      sun.shadow.camera.right = 36;
+      sun.shadow.camera.top = 36;
+      sun.shadow.camera.bottom = -36;
+      sun.shadow.bias = -0.0003;
+      sun.shadow.normalBias = 0.035;
+    }
     this.scene.add(sun);
 
     const fill = new THREE.DirectionalLight(0xC4E0E8, 0.32);
@@ -201,8 +243,24 @@ export class TempleSceneController {
     this.occludableMeshes = built.occludableMeshes || [];
     this.refs = built.animatedRefs;
 
-    // ★ 需求 #4：為全場景所有貼圖套用最高階非等向性過濾（Anisotropy），大幅提升磁磚、紅磚、壁畫與匾額的斜視清晰銳利度！
-    const maxAniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy?.() || 4);
+    // 預先彙整各遮擋群組的去重材質集合（大幅加速每幀透明化計算並避免重複步進！）
+    this.occludeGroupMaterials = new Map();
+    for (const mesh of this.occludableMeshes) {
+      const gid = mesh.userData?.occludeGroupId;
+      if (!gid || !mesh.material) continue;
+      let set = this.occludeGroupMaterials.get(gid);
+      if (!set) {
+        set = new Set();
+        this.occludeGroupMaterials.set(gid, set);
+      }
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach((m) => { if (m) set.add(m); });
+    }
+
+    // ★ 桌機套用高階非等向性過濾提升斜視銳利度；手機維持輕量（anisotropy <= 2）避免頻寬與 VRAM 暴增！
+    const maxAniso = this.isMobileDevice
+      ? Math.min(2, this.renderer.capabilities.getMaxAnisotropy?.() || 1)
+      : Math.min(8, this.renderer.capabilities.getMaxAnisotropy?.() || 4);
     this.templeRoot.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -874,19 +932,28 @@ export class TempleSceneController {
 
     const hitGroups = this.cachedHitGroups;
     const speed = Math.min(1, dt * 9);
-    for (const mesh of this.occludableMeshes) {
-      const gid = mesh.userData?.occludeGroupId;
-      const baseOp = mesh.userData?.baseOpacity ?? 1.0;
+    if (!this.occludeGroupMaterials) return;
+    for (const [gid, matSet] of this.occludeGroupMaterials.entries()) {
       const isRoof = gid === 'roof-front' || gid === 'roof-main';
       const fadeLevel = isRoof ? 0.13 : 0.16;
-      const targetOp = hitGroups.has(gid) ? Math.min(fadeLevel, baseOp) : baseOp;
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const mat of mats) {
+      const isHit = hitGroups.has(gid);
+      for (const mat of matSet) {
+        const baseOp = mat.userData?.baseOpacity ?? 1.0;
+        const baseTransparent = Boolean(mat.userData?.baseTransparent);
+        const targetOp = isHit ? Math.min(fadeLevel, baseOp) : baseOp;
         const curOp = mat.opacity;
-        if (Math.abs(targetOp - curOp) > 0.01) {
-          mat.opacity = curOp + (targetOp - curOp) * speed;
-          mat.depthWrite = mat.opacity > 0.85;
+        const diff = targetOp - curOp;
+        if (Math.abs(diff) > 0.012) {
+          mat.opacity = curOp + diff * speed;
+        } else if (curOp !== targetOp) {
+          mat.opacity = targetOp;
         }
+        // ★ 未遮擋時自動切回不透明（transparent = false）以恢復 GPU Early-Z 深度剔除；遮擋時無縫切為半透明！
+        const needTransparent = baseTransparent || mat.opacity < 0.985;
+        if (mat.transparent !== needTransparent) {
+          mat.transparent = needTransparent;
+        }
+        mat.depthWrite = !needTransparent || mat.opacity > 0.85;
       }
     }
   }
