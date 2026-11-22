@@ -27,17 +27,17 @@ export class WorldChatBarUI {
     this.mounted = true;
     this.root.innerHTML = `
       <div id="world-chat-container" class="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 w-[92vw] sm:w-[460px] max-w-[calc(100vw-24px)] flex flex-col items-center gap-1.5 pointer-events-auto">
-        <!-- 可展開的即時聊天紀錄抽屜 -->
-        <div id="wc-drawer" class="hidden w-full bg-[#122D26]/92 backdrop-blur-md border border-[#E5B968]/65 rounded-2xl shadow-2xl overflow-hidden text-[#FBF7E9] animate-fade-in">
-          <div class="px-3.5 py-2 bg-[#183C32] border-b border-[#E5B968]/35 flex items-center justify-between text-[11px]">
-            <span class="font-black text-[#FBE39C]">💬 廟埕即時聊天頻道（訊息同步浮現頭頂）</span>
-            <button id="wc-close-drawer" type="button" class="text-[#DCEEE2] hover:text-white font-bold px-1">收合 ▼</button>
+        <!-- 可展開的即時聊天紀錄抽屜（★ 溫潤宣紙底＋深墨字高對比閱讀優化！） -->
+        <div id="wc-drawer" class="hidden w-full bg-[#FFFBF2]/97 backdrop-blur-md border-2 border-[#C98A28] rounded-2xl shadow-2xl overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="px-3.5 py-2 bg-[#F4E6C8] border-b border-[#D4B47C] flex items-center justify-between text-xs">
+            <span class="font-black text-[#8E1515]">💬 廟埕即時聊天頻道（訊息同步浮現頭頂）</span>
+            <button id="wc-close-drawer" type="button" class="text-[#183C32] hover:text-[#8E1515] font-black px-1">收合 ▼</button>
           </div>
           <div id="wc-msg-list" class="max-h-40 overflow-y-auto p-2.5 space-y-1.5 text-xs"></div>
-          <div class="px-2.5 pb-2 flex flex-wrap gap-1">
+          <div class="px-2.5 pb-2 pt-1 bg-[#FAF1DC] border-t border-[#E6D2AE] flex flex-wrap gap-1">
             ${QUICK_SAY.map(s => `
               <button type="button" data-wc-quick="${s}"
-                class="px-2 py-0.5 rounded-full bg-white/10 hover:bg-[#E5B968]/30 border border-white/15 text-[10px] font-bold text-[#FBF7E9] transition">
+                class="px-2.5 py-0.5 rounded-full bg-white hover:bg-[#FEF3C7] border border-[#C98A28] text-[11px] font-bold text-[#3B2010] transition">
                 ${s}
               </button>
             `).join('')}
@@ -45,17 +45,17 @@ export class WorldChatBarUI {
         </div>
 
         <!-- 主輸入列（常駐底部） -->
-        <form id="wc-form" class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#15352D]/92 border-2 border-[#E5B968]/70 shadow-[0_8px_28px_rgba(8,24,20,0.45)] backdrop-blur-md">
+        <form id="wc-form" class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#FFFBF2]/97 border-2 border-[#C98A28] shadow-[0_8px_24px_rgba(16,28,22,0.28)] backdrop-blur-md">
           <button id="wc-toggle-drawer" type="button" title="展開/收合聊天紀錄"
-            class="shrink-0 px-2.5 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-[#FBE39C] text-xs font-black transition flex items-center gap-1">
+            class="shrink-0 px-2.5 h-8 rounded-xl bg-[#F3E6CA] hover:bg-[#E7D1A4] text-[#3B2010] text-xs font-black transition flex items-center gap-1 border border-[#D4B47C]">
             <span>💬</span>
             <span class="hidden sm:inline">紀錄</span>
           </button>
           <input id="wc-input" type="text" maxlength="45" autocomplete="off"
             placeholder="輸入聊天內容，送出會浮在角色頭頂喔…"
-            class="flex-1 min-w-0 bg-white/95 text-[#183C32] placeholder-[#6B7A72] text-xs sm:text-sm font-bold px-3 py-1.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E5B968]" />
+            class="flex-1 min-w-0 bg-white text-[#183C32] placeholder-[#6B7A72] border border-[#D4C3A1] text-xs sm:text-sm font-bold px-3 py-1.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8E1515]" />
           <button type="submit"
-            class="shrink-0 px-3.5 h-8 rounded-xl bg-gradient-to-r from-[#D97706] to-[#B45309] hover:brightness-110 text-white text-xs font-black shadow transition active:scale-95">
+            class="shrink-0 px-3.5 h-8 rounded-xl bg-[#8E1515] hover:bg-[#701010] text-[#FFFDF6] text-xs font-black shadow transition active:scale-95">
             送出
           </button>
         </form>
@@ -129,8 +129,8 @@ export class WorldChatBarUI {
       <div class="flex items-start gap-1.5 leading-snug">
         <span class="shrink-0">${m.avatar || '🙏'}</span>
         <div class="min-w-0">
-          <span class="font-black ${m.role === 'keeper' ? 'text-[#FBE39C]' : m.role === 'player' ? 'text-[#86EFAC]' : 'text-[#93C5FD]'}">${this._esc(m.sender)}：</span>
-          <span class="text-[#FBF7E9] break-words">${this._esc(m.text)}</span>
+          <span class="font-black ${m.role === 'keeper' ? 'text-[#8E1515]' : m.role === 'player' ? 'text-[#0F766E]' : 'text-[#1D4ED8]'}">${this._esc(m.sender)}：</span>
+          <span class="text-[#1C2D28] font-medium break-words">${this._esc(m.text)}</span>
         </div>
       </div>
     `).join('');

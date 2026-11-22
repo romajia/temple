@@ -570,16 +570,17 @@ export class ChibiAvatar {
     canvas.height = 72;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = 'rgba(21, 53, 45, 0.92)';
+    // 溫潤宣紙米白底 ＋ 深松綠框 ＋ 高對比深墨粗體字（日夜皆極清晰易讀！）
+    ctx.fillStyle = 'rgba(255, 251, 240, 0.96)';
     drawRoundRect(ctx, 14, 10, 292, 52, 26);
     ctx.fill();
-    ctx.strokeStyle = '#E5B968';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#183C32';
+    ctx.lineWidth = 4.5;
     drawRoundRect(ctx, 14, 10, 292, 52, 26);
     ctx.stroke();
 
-    ctx.fillStyle = '#FBF7E9';
-    ctx.font = 'bold 28px "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.fillStyle = '#142E26';
+    ctx.font = '900 28px "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(clean.slice(0, 10), 160, 37);
@@ -589,7 +590,8 @@ export class ChibiAvatar {
     this.nameTagSprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex,
       transparent: true,
-      depthTest: false
+      depthTest: false,
+      toneMapped: false
     }));
     this.nameTagSprite.scale.set(1.75, 0.40, 1);
     const sc = this.scaleGroup.scale.y || 1;
@@ -642,7 +644,8 @@ export class ChibiAvatar {
     this.bubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex,
       transparent: true,
-      depthTest: false
+      depthTest: false,
+      toneMapped: false
     }));
     this.bubbleSprite.scale.set(3.0, 0.58, 1);
     const sc = this.scaleGroup.scale.y || 1;

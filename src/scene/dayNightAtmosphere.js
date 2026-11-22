@@ -300,7 +300,7 @@ export class DayNightAtmosphere {
 
     this.scene.background.copy(new THREE.Color(D.skyColor).lerp(new THREE.Color(N.skyColor), nf));
     if (this.scene.fog) this.scene.fog.color.copy(new THREE.Color(D.fogColor).lerp(new THREE.Color(N.fogColor), nf));
-    this.scene.environmentIntensity = THREE.MathUtils.lerp(0.54, 0.20, nf);
+    this.scene.environmentIntensity = THREE.MathUtils.lerp(0.30, 0.22, nf);
 
     this.lights.sun.color.copy(new THREE.Color(D.sunColor).lerp(new THREE.Color(N.sunColor), nf));
     this.lights.sun.intensity = THREE.MathUtils.lerp(D.sunIntensity, N.sunIntensity, nf);

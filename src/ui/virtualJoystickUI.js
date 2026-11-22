@@ -48,7 +48,7 @@ export class VirtualJoystickUI {
           class="absolute w-12 h-12 rounded-full bg-gradient-to-b from-[#FCE07C] to-[#D97706] border-2 border-white shadow-md pointer-events-none flex items-center justify-center text-xs font-bold text-[#4A1C0A]">
           ✦
         </div>
-        <span class="absolute -bottom-5 text-[10px] font-bold text-[#FFF9E6] bg-black/45 px-2 py-0.5 rounded-full pointer-events-none whitespace-nowrap">移動搖桿</span>
+        <span class="absolute -bottom-6 text-[11px] font-black text-[#1C2D28] bg-[#FFFBF2]/95 border border-[#C98A28] px-2.5 py-0.5 rounded-full shadow pointer-events-none whitespace-nowrap">移動搖桿</span>
       </div>
     `;
 
@@ -111,15 +111,15 @@ export class VirtualJoystickUI {
 
     this.actionRoot.innerHTML = `
       <div class="fixed right-4 bottom-28 sm:bottom-20 z-30 flex flex-col items-end gap-1.5 animate-fade-in">
-        <div class="px-3 py-1 rounded-full bg-[#15352D]/92 border border-[#E5B968] text-[#FFF5CC] text-xs font-bold shadow-md">
+        <div class="px-3 py-1 rounded-full bg-[#FFFBF2]/98 border-2 border-[#8E1515] text-[#240E08] text-xs font-black shadow-md">
           已進入【${this._esc(target.title)}】
         </div>
         <button id="btn-proximity-interact"
-          class="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-b from-[#D93829] to-[#991B1B] text-[#FFFBF0] border-2 border-[#FCE07C] shadow-[0_8px_28px_rgba(185,28,28,0.55)] hover:brightness-110 active:scale-95 transition">
+          class="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-b from-[#9E1A18] to-[#731010] text-[#FFFDF6] border-2 border-[#FCE07C] shadow-[0_8px_24px_rgba(120,18,18,0.45)] hover:brightness-110 active:scale-95 transition">
           <span class="text-2xl">${target.icon || '✨'}</span>
           <div class="text-left">
             <div class="font-black text-sm sm:text-base leading-tight">${this._esc(target.actionText || target.title)}</div>
-            <div class="text-[11px] text-[#FFE899] font-bold">按 [E] 鍵或點擊進入</div>
+            <div class="text-[11px] text-[#FFE899] font-extrabold">按 [E] 鍵或點擊進入</div>
           </div>
         </button>
       </div>

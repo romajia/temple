@@ -74,19 +74,19 @@ export class TempleSceneController {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.16;
+    this.renderer.toneMappingExposure = 0.94;
     this.container.appendChild(this.renderer.domElement);
   }
 
   _initSceneAndLights() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#B8D4C8');
-    this.scene.fog = new THREE.Fog('#C2DBD0', 62, 155);
+    this.scene.background = new THREE.Color('#9AC0B2');
+    this.scene.fog = new THREE.Fog('#A6C8BC', 64, 160);
 
-    // ★ 需求 #4：建立真實 PBR 環境反射貼圖，讓金箔神帽、天公爐、朱漆、琉璃瓦與水池波光呈現劇院級細緻光澤！
+    // ★ 溫潤細膩 PBR 環境反射（控制於柔和 0.30，保留金飾光澤同時避免白天畫面過曝刺眼！）
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.52;
+    this.scene.environmentIntensity = 0.30;
     pmrem.dispose();
 
     this.camera = new THREE.PerspectiveCamera(
@@ -96,10 +96,10 @@ export class TempleSceneController {
       220
     );
 
-    const hemi = new THREE.HemisphereLight(0xFFF6E0, 0x7C9D7B, 1.12);
+    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, 0.76);
     this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xFFF3DC, 2.15);
+    const sun = new THREE.DirectionalLight(0xFFF0D4, 1.48);
     sun.position.set(22, 36, 24);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -114,7 +114,7 @@ export class TempleSceneController {
     sun.shadow.normalBias = 0.035;
     this.scene.add(sun);
 
-    const fill = new THREE.DirectionalLight(0xD1EEF4, 0.55);
+    const fill = new THREE.DirectionalLight(0xC4E0E8, 0.32);
     fill.position.set(-20, 16, -14);
     this.scene.add(fill);
 

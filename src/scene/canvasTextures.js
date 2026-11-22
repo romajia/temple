@@ -893,45 +893,60 @@ export function createRoofTileTexture() {
 }
 
 /**
- * 場景互動點高對比懸浮牌（深紅底亮金字＋白金外框，清楚易讀）
+ * 場景互動點超高對比懸浮牌（溫潤米白底＋深墨紅粗體字＋金紅雙框＋關閉 toneMapped，日夜皆清晰易讀不刺眼！）
  */
 export function createZoneBadgeSprite(label, accentColor = '#B92B27') {
   const canvas = document.createElement('canvas');
-  canvas.width = 340;
-  canvas.height = 96;
+  canvas.width = 360;
+  canvas.height = 100;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = 'rgba(42, 16, 11, 0.90)';
-  drawRoundRect(ctx, 14, 16, 312, 64, 32);
+  // 外層微陰影立體邊
+  ctx.fillStyle = 'rgba(20, 12, 8, 0.26)';
+  drawRoundRect(ctx, 16, 20, 328, 66, 33);
   ctx.fill();
 
-  ctx.strokeStyle = '#FAD364';
+  // 溫潤不反光宣紙米白底（白底深字，日夜場景都一眼看清！）
+  ctx.fillStyle = 'rgba(255, 251, 240, 0.97)';
+  drawRoundRect(ctx, 14, 15, 332, 66, 33);
+  ctx.fill();
+
+  // 深朱紅外框 ＋ 內層淡金線
+  ctx.strokeStyle = '#8E1515';
   ctx.lineWidth = 5;
-  drawRoundRect(ctx, 14, 16, 312, 64, 32);
+  drawRoundRect(ctx, 14, 15, 332, 66, 33);
   ctx.stroke();
 
+  ctx.strokeStyle = '#D9A040';
+  ctx.lineWidth = 2;
+  drawRoundRect(ctx, 20, 21, 320, 54, 27);
+  ctx.stroke();
+
+  // 左側區域色標圓點
   ctx.fillStyle = accentColor;
   ctx.beginPath();
-  ctx.arc(48, 48, 12, 0, Math.PI * 2);
+  ctx.arc(50, 48, 12, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = '#FFFDF5';
+  ctx.strokeStyle = '#2A120B';
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  ctx.fillStyle = '#FFF9E6';
-  ctx.font = 'bold 28px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+  // 超高對比深墨褐粗體字（告別白字模糊！）
+  ctx.fillStyle = '#240E08';
+  ctx.font = '900 30px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, 184, 49);
+  ctx.fillText(label, 196, 49);
 
   const tex = makeCanvasTexture(canvas);
   const mat = new THREE.SpriteMaterial({
     map: tex,
     transparent: true,
-    depthTest: false
+    depthTest: false,
+    toneMapped: false
   });
   const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(2.25, 0.66, 1);
+  sprite.scale.set(2.35, 0.66, 1);
   sprite.renderOrder = 20;
   return sprite;
 }

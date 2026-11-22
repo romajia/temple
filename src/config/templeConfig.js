@@ -132,18 +132,18 @@ export const AVATAR_PRESETS = [
 
 export const LIGHTING_THEMES = {
   day: {
-    skyColor: '#B8D4C8',
-    fogColor: '#C2DBD0',
-    sunColor: '#FFF3DC',
-    sunIntensity: 2.15,
-    hemiSky: '#FFF6E0',
-    hemiGround: '#7C9D7B',
-    hemiIntensity: 1.12,
-    fillColor: '#D1EEF4',
-    fillIntensity: 0.55,
-    shrineLightIntensity: 2.2,
+    skyColor: '#9AC0B2',
+    fogColor: '#A6C8BC',
+    sunColor: '#FFF0D4',
+    sunIntensity: 1.48,
+    hemiSky: '#F5EAD0',
+    hemiGround: '#6B8C6A',
+    hemiIntensity: 0.76,
+    fillColor: '#C4E0E8',
+    fillIntensity: 0.32,
+    shrineLightIntensity: 2.0,
     furnaceLightIntensity: 1.5,
-    lanternEmissive: 0.48,
+    lanternEmissive: 0.44,
     nightFactor: 0
   },
   night: {

@@ -194,9 +194,9 @@ export class TempleModalsUI {
     this.modalRoot.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
         <div class="bg-[#FFFBF2] border-4 border-[#B45309] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-[#261109]">
-          <div class="bg-gradient-to-r from-[#92400E] to-[#D97706] px-5 py-3.5 flex items-center justify-between text-[#FFFDF5] border-b-2 border-[#FCE07C]">
+          <div class="bg-gradient-to-r from-[#7C2D12] to-[#9A3412] px-5 py-3.5 flex items-center justify-between text-[#FFFDF5] border-b-2 border-[#FCE07C]">
             <h2 class="font-black text-lg">☀️ 廟外廣場・天公爐</h2>
-            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+            <button data-close class="w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white font-bold">✕</button>
           </div>
           <div class="p-5 space-y-4 text-center">
             <div class="text-5xl">🙏🌤️</div>
@@ -209,7 +209,7 @@ export class TempleModalsUI {
                 💡 溫馨提醒：建議先至廟內左側香燭區點香；若直接參拜也會自動備妥三柱清香。
               </div>
             ` : ''}
-            <button id="btn-bow-tiangong" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#D97706] to-[#B45309] text-white font-black text-base shadow-lg border border-[#FCE07C] hover:brightness-110">
+            <button id="btn-bow-tiangong" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#9E1A18] to-[#781210] text-[#FFFDF6] font-black text-base shadow-lg border border-[#FCE07C] hover:brightness-110">
               🙏 面向天際三拜天公・直接上前插香
             </button>
           </div>
@@ -500,38 +500,38 @@ export class TempleModalsUI {
     const totalSavedTaps = storageSync.getPlayer().chantTotalTaps || 0;
 
     this.chantRoot.innerHTML = `
-      <div class="fixed left-1/2 -translate-x-1/2 bottom-16 z-40 w-[94vw] max-w-2xl bg-[#26110A]/94 backdrop-blur-md border-2 border-[#FAD364] rounded-3xl shadow-[0_14px_45px_rgba(0,0,0,0.55)] p-4 text-[#FFFBF0]">
-        <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#FAD364]/30">
+      <div class="fixed left-1/2 -translate-x-1/2 bottom-16 z-40 w-[94vw] max-w-2xl bg-[#FFFBF2]/98 backdrop-blur-md border-2 border-[#8E1515] rounded-3xl shadow-[0_14px_40px_rgba(16,24,20,0.35)] p-4 text-[#240E08]">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#E5D4B3]">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="px-2.5 py-1 rounded-full bg-[#8E2523] border border-[#FAD364]/60 text-[11px] font-black text-[#FFF3B0]">🙏 ${this._esc(this.chantMatLabel || '正殿拜墊')}</span>
-            <select id="chant-select" class="bg-[#4A2014] border border-[#FAD364] text-[#FFF3B0] text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none">
+            <span class="px-2.5 py-1 rounded-full bg-[#F5E6CC] border border-[#C98A28] text-xs font-black text-[#8E1515]">🙏 ${this._esc(this.chantMatLabel || '正殿拜墊')}</span>
+            <select id="chant-select" class="bg-white border-2 border-[#C98A28] text-[#240E08] text-xs font-extrabold rounded-xl px-3 py-1.5 focus:outline-none">
               ${SUTRA_LIST.map((s, idx) => `<option value="${idx}" ${idx === this.chantSutraIdx ? 'selected' : ''}>📜 ${s.title}</option>`).join('')}
             </select>
-            <span class="text-xs font-bold text-[#FFE599] bg-black/35 px-2.5 py-1 rounded-full">本次 ${this.chantTapCount} 下｜累計 ${totalSavedTaps} 下</span>
+            <span class="text-xs font-extrabold text-[#5C3A21] bg-[#F5E6CC] px-2.5 py-1 rounded-full">本次 ${this.chantTapCount} 下｜累計 ${totalSavedTaps} 下</span>
           </div>
-          <button id="chant-exit" class="px-3.5 py-1.5 rounded-full bg-[#B91C1C] hover:bg-[#991B1B] text-white text-xs font-black border border-[#FAD364] shadow">
+          <button id="chant-exit" class="px-3.5 py-1.5 rounded-full bg-[#8E1515] hover:bg-[#701010] text-[#FFFDF6] text-xs font-black border border-[#FAD364] shadow">
             起身離開念經 ✕
           </button>
         </div>
 
-        <div class="bg-black/40 rounded-2xl px-4 py-3.5 text-center my-3 border border-[#FAD364]/35">
-          <div class="font-serif text-lg sm:text-xl font-black text-[#FFF3B0] tracking-wider leading-relaxed">
+        <div class="bg-[#FAF0DA] rounded-2xl px-4 py-3.5 text-center my-3 border border-[#DFC798]">
+          <div class="font-serif text-lg sm:text-xl font-black text-[#8E1515] tracking-wider leading-relaxed">
             ${currentLine}
           </div>
-          <div class="text-xs text-[#E5C9A5] mt-1.5 font-medium">
+          <div class="text-xs text-[#5C3A21] mt-1.5 font-bold">
             下一句：${nextLine}
           </div>
         </div>
 
         <div class="flex flex-wrap items-center justify-center gap-3">
-          <button id="btn-tap-fish" class="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-b from-[#F59E0B] to-[#B45309] text-white font-black text-sm shadow-lg border border-[#FCE07C] active:scale-90 transition">
+          <button id="btn-tap-fish" class="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#8E1515] hover:bg-[#701010] text-[#FFFDF6] font-black text-sm shadow-lg border border-[#FCE07C] active:scale-90 transition">
             <span id="fish-icon" class="text-xl inline-block transition-transform">🪵</span>
             <span>輕敲木魚（誦下一句）</span>
           </button>
-          <button id="btn-auto-fish" class="px-4 py-2.5 rounded-full text-xs font-bold border-2 transition ${
+          <button id="btn-auto-fish" class="px-4 py-2.5 rounded-full text-xs font-black border-2 transition ${
             this.chantAutoTimer
-              ? 'bg-[#16A34A] border-[#86EFAC] text-white'
-              : 'bg-white/10 border-[#FAD364] text-[#FFF3B0] hover:bg-white/20'
+              ? 'bg-[#15803D] border-[#14532D] text-[#FFFDF6]'
+              : 'bg-white border-[#C98A28] text-[#240E08] hover:bg-[#FEF3C7]'
           }">
             ${this.chantAutoTimer ? '⏸ 暫停自動慢敲' : '▶ 自動慢敲誦經'}
           </button>
@@ -1020,9 +1020,9 @@ export class TempleModalsUI {
     this.modalRoot.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
         <div class="bg-[#FFFBF2] border-4 border-[#C2410C] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-[#261109]">
-          <div class="bg-gradient-to-r from-[#9A3412] to-[#EA580C] px-5 py-3.5 flex items-center justify-between text-white border-b-2 border-[#FCE07C]">
+          <div class="bg-gradient-to-r from-[#7C2D12] to-[#9A3412] px-5 py-3.5 flex items-center justify-between text-[#FFFDF5] border-b-2 border-[#FCE07C]">
             <h2 class="font-black text-lg">🔥 廟宇右側外部・寶塔金爐</h2>
-            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+            <button data-close class="w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white font-bold">✕</button>
           </div>
           <div class="p-5 space-y-4 text-center">
             <div class="text-5xl">🔥🟨✨</div>
@@ -1030,7 +1030,7 @@ export class TempleModalsUI {
               誠心將敬神壽金<strong>一張一張投入寶塔金爐爐口</strong>，<br>
               隨著溫暖火焰跳動與化金青煙冉冉升起，祈願消災解厄、平安納福！
             </p>
-            <button id="btn-burn-joss" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#B91C1C] text-white font-black text-base shadow-lg border border-[#FCE07C] hover:brightness-110 active:scale-95 transition">
+            <button id="btn-burn-joss" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#9E1A18] to-[#781210] text-[#FFFDF6] font-black text-base shadow-lg border border-[#FCE07C] hover:brightness-110 active:scale-95 transition">
               🔥 開始逐張投入金紙化金
             </button>
           </div>

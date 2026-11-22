@@ -28,7 +28,7 @@ function showToast(message, duration = 3600) {
   const host = document.getElementById('toast-host');
   if (!host) return;
   const el = document.createElement('div');
-  el.className = 'px-4 py-2.5 rounded-2xl bg-[#15352D]/94 text-[#FBF7E9] border border-[#E5B968] shadow-xl text-xs sm:text-sm font-bold backdrop-blur-md transition-all duration-300';
+  el.className = 'px-4 py-2.5 rounded-2xl bg-[#FFFBF2]/98 text-[#240E08] border-2 border-[#8E1515] shadow-[0_8px_24px_rgba(16,24,20,0.28)] text-xs sm:text-sm font-black backdrop-blur-md transition-all duration-300';
   el.textContent = message;
   host.appendChild(el);
   setTimeout(() => {
@@ -422,8 +422,8 @@ function initApp() {
     camPresetBtns.forEach(btn => {
       const id = btn.getAttribute('data-cam-preset');
       btn.className = id === activeId
-        ? 'cam-preset-btn px-2 h-8 rounded-lg bg-[#E5B968] text-[#15352D] text-[11px] font-black transition shadow'
-        : `cam-preset-btn px-2 h-8 rounded-lg hover:bg-white/15 ${id === 'god' ? 'text-[#F5D68E] font-black' : 'text-[#FBF7E9] font-bold'} text-[11px] transition`;
+        ? 'cam-preset-btn px-2.5 h-8 rounded-lg bg-[#8E1515] text-[#FFFDF6] text-xs font-black transition shadow-sm'
+        : `cam-preset-btn px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] ${id === 'god' ? 'text-[#8E1515] font-black' : 'text-[#183C32] font-extrabold'} text-xs transition`;
     });
   };
   camPresetBtns.forEach(btn => {
