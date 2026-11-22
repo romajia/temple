@@ -19,12 +19,12 @@ class TempleSoundEngine {
     this.duckFactor = 1.0;  // 1.0 = 正常, 0.22 = 念經模式壓低背景樂
     this.targetDuck = 1.0;
 
-    // HTML5 Audio 主配樂（支援真 MP3 絲滑淡入淡出）
+    // HTML5 Audio 主配樂（延遲載入！等玩家按下進入廟宇時才下載 3.4MB MP3，大幅節省開場頻寬與載入時間！）
     this.bgmAudio = new Audio();
-    this.bgmAudio.src = BGM_URL;
     this.bgmAudio.loop = true;
-    this.bgmAudio.preload = 'auto';
+    this.bgmAudio.preload = 'none';
     this.bgmAudio.volume = 0;
+    this.bgmSrcAttached = false;
 
     this.bgmActive = false;
     this.bgmUsingMp3 = true;
@@ -105,6 +105,10 @@ class TempleSoundEngine {
     if (this.muted) return;
 
     if (this.bgmUsingMp3) {
+      if (!this.bgmSrcAttached) {
+        this.bgmAudio.src = BGM_URL;
+        this.bgmSrcAttached = true;
+      }
       const p = this.bgmAudio.play();
       if (p && typeof p.catch === 'function') {
         p.catch(() => {

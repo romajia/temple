@@ -518,9 +518,16 @@ async function initApp() {
   window.__finishTempleLoader?.();
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+const bootTempleApp = () => {
   initApp().catch((err) => {
     console.error('[DeciTemple] initApp error:', err);
     window.__finishTempleLoader?.();
   });
-});
+};
+
+// ★ 修復 ES Module 載入完時 DOMContentLoaded 早已觸發導致卡在 30% 的關鍵問題！
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', bootTempleApp, { once: true });
+} else {
+  bootTempleApp();
+}

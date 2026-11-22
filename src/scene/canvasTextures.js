@@ -5,10 +5,22 @@
  */
 import * as THREE from 'three';
 
-function makeCanvasTexture(canvas, srgb = true) {
-  const tex = new THREE.CanvasTexture(canvas);
+const IS_MOBILE_TEX = typeof window !== 'undefined' && (window.innerWidth <= 900 || 'ontouchstart' in window);
+
+function makeCanvasTexture(canvas, srgb = true, allowDownscale = true) {
+  let source = canvas;
+  // 手機裝置自動將超大靜態貼圖（>= 1024px）壓縮至 512px 級別，節省 75% GPU 記憶體並大幅加速啟動！
+  if (IS_MOBILE_TEX && allowDownscale && (canvas.width >= 1024 || canvas.height >= 1024)) {
+    const scale = 512 / Math.max(canvas.width, canvas.height);
+    const small = document.createElement('canvas');
+    small.width = Math.max(128, Math.round(canvas.width * scale));
+    small.height = Math.max(128, Math.round(canvas.height * scale));
+    small.getContext('2d').drawImage(canvas, 0, 0, small.width, small.height);
+    source = small;
+  }
+  const tex = new THREE.CanvasTexture(source);
   if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = IS_MOBILE_TEX ? 2 : 6;
   tex.needsUpdate = true;
   return tex;
 }
@@ -704,7 +716,7 @@ export function drawTaiSuiWallCanvas(canvas, list = [], highlightName = '') {
 export function createTaiSuiWallTexture(list, highlightName = '') {
   const canvas = document.createElement('canvas');
   drawTaiSuiWallCanvas(canvas, list, highlightName);
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.userData = { canvas };
   return tex;
 }
@@ -801,7 +813,7 @@ export function drawBulletinCanvas(canvas, bulletin) {
 export function createBulletinTexture(bulletin) {
   const canvas = document.createElement('canvas');
   drawBulletinCanvas(canvas, bulletin);
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.userData = { canvas };
   return tex;
 }
@@ -824,7 +836,7 @@ export function createPlazaTileTexture() {
       ctx.strokeRect(x + 2, y + 2, step - 4, step - 4);
     }
   }
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(7, 7);
@@ -854,7 +866,7 @@ export function createHallFloorTexture() {
       ctx.fill();
     }
   }
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(3, 3);
@@ -885,7 +897,7 @@ export function createRoofTileTexture() {
     ctx.lineTo(512, y);
     ctx.stroke();
   }
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(4, 2);
@@ -938,7 +950,7 @@ export function createZoneBadgeSprite(label, accentColor = '#B92B27') {
   ctx.textBaseline = 'middle';
   ctx.fillText(label, 196, 49);
 
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   const mat = new THREE.SpriteMaterial({
     map: tex,
     transparent: true,
@@ -979,7 +991,7 @@ export function createCrimsonRoofTileTexture() {
     ctx.lineTo(512, y);
     ctx.stroke();
   }
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(5, 2);
@@ -1016,7 +1028,7 @@ export function createRedBrickWallTexture() {
       ctx.fillRect(bx + 3, by + 3, brickW - 6, 5);
     }
   }
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(4, 2);
@@ -1150,7 +1162,7 @@ export function createBlueRidgeOrnamentTexture() {
     ctx.fill();
   }
 
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.repeat.set(4, 1);
@@ -1177,7 +1189,7 @@ export function createFriezeBandTexture() {
     ctx.lineWidth = 3;
     ctx.strokeRect(i * 64 + 8, 18, 48, 60);
   }
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.repeat.set(4, 1);
@@ -2140,111 +2152,113 @@ export function createLanternSilkTexture() {
 }
 
 /**
- * 16. 工匠精雕石材紋理（花崗岩鑿痕 ＋ 淺浮雕回紋凹框，需求 #14）
+ * 16. 工匠精雕石材紋理（花崗岩鑿痕 ＋ 淺浮雕回紋凹框，單例快取加速載入！）
  */
+let _cachedCarvedStoneTex = null;
 export function createCarvedStoneTexture() {
+  if (_cachedCarvedStoneTex) return _cachedCarvedStoneTex;
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#CACFD4';
-  ctx.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 1600; i++) {
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 420; i++) {
     ctx.fillStyle = i % 3 === 0 ? 'rgba(255,255,255,0.22)' : i % 3 === 1 ? 'rgba(80,88,96,0.14)' : 'rgba(130,138,146,0.12)';
-    ctx.fillRect((i * 79) % 510, (i * 137) % 510, 3, 3);
+    ctx.fillRect((i * 79) % 254, (i * 137) % 254, 2, 2);
   }
   ctx.strokeStyle = '#E6EAEE';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(12, 12, 488, 488);
+  ctx.lineWidth = 4;
+  ctx.strokeRect(6, 6, 244, 244);
   ctx.strokeStyle = '#8F97A0';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(24, 24, 464, 464);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(12, 12, 232, 232);
 
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(2, 2);
+  _cachedCarvedStoneTex = tex;
   return tex;
 }
 
 /**
- * 17. 工匠精雕紅木紋理（深紅檀木直紋 ＋ 金絲雕框，需求 #14）
+ * 17. 工匠精雕紅木紋理（深紅檀木直紋 ＋ 金絲雕框，單例快取！）
  */
+let _cachedRosewoodTex = null;
 export function createCarvedRosewoodTexture() {
+  if (_cachedRosewoodTex) return _cachedRosewoodTex;
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#4E261A';
-  ctx.fillRect(0, 0, 512, 512);
-  for (let y = 0; y < 512; y += 6) {
-    ctx.fillStyle = y % 12 === 0 ? 'rgba(30, 12, 8, 0.35)' : 'rgba(145, 86, 48, 0.16)';
-    ctx.fillRect(0, y, 512, 3);
+  ctx.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 4) {
+    ctx.fillStyle = y % 8 === 0 ? 'rgba(30, 12, 8, 0.35)' : 'rgba(145, 86, 48, 0.16)';
+    ctx.fillRect(0, y, 256, 2);
   }
-  // 雕花金細線邊
   ctx.strokeStyle = 'rgba(235, 190, 96, 0.45)';
-  ctx.lineWidth = 5;
-  ctx.strokeRect(14, 14, 484, 484);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(8, 8, 240, 240);
 
-  const tex = makeCanvasTexture(canvas);
+  const tex = makeCanvasTexture(canvas, true, false);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
+  _cachedRosewoodTex = tex;
   return tex;
 }
 
 /**
- * 18. ★ 需求 #9：真實「天公爐／香爐香灰層紋理」（細膩灰白粉質香灰＋微掃圓環紋＋點點細香腳末！）
+ * 18. 真實「天公爐／香爐香灰層紋理」（單例快取＋高效顆粒演算法，4 倍速生成！）
  */
+let _cachedAshTex = null;
 export function createIncenseAshTexture() {
+  if (_cachedAshTex) return _cachedAshTex;
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
-  // 柔和微隆起暖灰白香灰底色
-  const g = ctx.createRadialGradient(256, 256, 20, 256, 256, 256);
+  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
   g.addColorStop(0, '#EBE6DC');
   g.addColorStop(0.58, '#D7D0C4');
   g.addColorStop(0.88, '#BFB7A8');
   g.addColorStop(1, '#9E9689');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillRect(0, 0, 256, 256);
 
-  // 廟公撫平香灰的細緻同心紋
-  for (let r = 36; r < 245; r += 26) {
+  for (let r = 18; r < 122; r += 14) {
     ctx.strokeStyle = 'rgba(130, 122, 110, 0.14)';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(256, 256, r, 0, Math.PI * 2);
+    ctx.arc(128, 128, r, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  // 細密粉狀香灰顆粒
-  for (let i = 0; i < 2400; i++) {
-    const x = (i * 197 + (i % 13) * 29) % 512;
-    const y = (i * 313 + (i % 17) * 23) % 512;
-    const dx = x - 256;
-    const dy = y - 256;
-    if (dx * dx + dy * dy > 250 * 250) continue;
+  for (let i = 0; i < 600; i++) {
+    const x = (i * 97 + (i % 13) * 19) % 256;
+    const y = (i * 157 + (i % 17) * 13) % 256;
+    const dx = x - 128;
+    const dy = y - 128;
+    if (dx * dx + dy * dy > 124 * 124) continue;
     ctx.fillStyle = i % 3 === 0
       ? 'rgba(255, 253, 248, 0.42)'
       : i % 3 === 1
         ? 'rgba(115, 108, 98, 0.28)'
         : 'rgba(165, 156, 144, 0.30)';
-    ctx.fillRect(x, y, 2.5, 2.5);
+    ctx.fillRect(x, y, 2, 2);
   }
 
-  // 些許已燃盡的微紅細香腳點綴（超有真實宮廟香火鼎盛感！）
-  for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * Math.PI * 2 + 0.4;
-    const r = 40 + (i * 37) % 135;
-    const sx = 256 + Math.cos(a) * r;
-    const sy = 256 + Math.sin(a) * r;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 + 0.4;
+    const r = 20 + (i * 19) % 68;
     ctx.fillStyle = 'rgba(182, 54, 48, 0.55)';
-    ctx.beginPath(); ctx.arc(sx, sy, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 2.2, 0, Math.PI * 2); ctx.fill();
   }
 
-  return makeCanvasTexture(canvas);
+  _cachedAshTex = makeCanvasTexture(canvas);
+  return _cachedAshTex;
 }

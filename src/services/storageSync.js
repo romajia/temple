@@ -50,8 +50,9 @@ function getTodayStr() {
 
 class TempleStorageSync {
   constructor() {
+    const isStaticHost = /(?:github\.io|pages\.dev|netlify\.app|vercel\.app)$/i.test(window.location.hostname || '');
     this.mode = FIREBASE_CONFIG.enabled && FIREBASE_CONFIG.databaseURL ? 'firebase' : 'server-mp';
-    this.serverMpAvailable = true;
+    this.serverMpAvailable = !isStaticHost;
     this.clientId = `pilgrim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     this.lastBubbleText = '';
     this.lastBubbleAt = 0;

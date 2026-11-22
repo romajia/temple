@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>台南港口玉勅代天府德慈宮｜3D Q版線上參拜</title>
 
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet" />
+  <!-- 非阻塞載入精簡版明體字型（避免下載整包數 MB 繁體字型拖慢開啟速度！） -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" crossorigin />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -142,6 +145,13 @@
       line-height: 1.3;
       margin: 0 0 18px;
     }
+    .loader-wait {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      color: #FFE49E;
+      margin: -6px 0 16px;
+    }
     .loader-track {
       width: 100%;
       height: 14px;
@@ -187,11 +197,12 @@
       <div class="loader-emblem animate-float-soft">🏮</div>
       <div class="loader-sub">代天巡狩・五府千歲・3D 線上參拜</div>
       <h1 class="loader-title">台南港口玉勅代天府德慈宮</h1>
+      <div class="loader-wait">遊戲載入中... 請耐心等候...</div>
       <div class="loader-track">
         <div id="loader-bar" class="loader-fill"></div>
       </div>
       <div class="loader-meta">
-        <span id="loader-stage">正在開啟廟門、載入 3D 場景…</span>
+        <span id="loader-stage">正在載入 3D 廟宇引擎…</span>
         <span id="loader-pct" class="loader-pct">8%</span>
       </div>
     </div>
@@ -199,20 +210,22 @@
   <script>
     (function () {
       let currentPct = 8;
+      let realProgressStarted = false;
       const bar = document.getElementById('loader-bar');
       const pctEl = document.getElementById('loader-pct');
       const stageEl = document.getElementById('loader-stage');
       const loaderEl = document.getElementById('app-loader');
       let trickleTimer = setInterval(function () {
-        if (currentPct < 30) {
+        if (!realProgressStarted && currentPct < 36) {
           currentPct += 2;
           if (bar) bar.style.width = currentPct + '%';
           if (pctEl) pctEl.textContent = currentPct + '%';
         }
-      }, 220);
+      }, 240);
 
       window.__setTempleLoader = function (pct, msg) {
-        if (trickleTimer && pct >= 30) {
+        realProgressStarted = true;
+        if (trickleTimer) {
           clearInterval(trickleTimer);
           trickleTimer = null;
         }
@@ -223,6 +236,7 @@
       };
 
       window.__finishTempleLoader = function () {
+        realProgressStarted = true;
         if (trickleTimer) {
           clearInterval(trickleTimer);
           trickleTimer = null;
@@ -230,8 +244,8 @@
         window.__setTempleLoader(100, '恭迎蒞臨・準備完成！');
         setTimeout(function () {
           if (loaderEl) loaderEl.classList.add('is-done');
-          setTimeout(function () { if (loaderEl) loaderEl.remove(); }, 520);
-        }, 280);
+          setTimeout(function () { if (loaderEl) loaderEl.remove(); }, 480);
+        }, 220);
       };
     })();
   </script>
