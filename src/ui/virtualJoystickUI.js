@@ -41,14 +41,14 @@ export class VirtualJoystickUI {
 
     this.joyRoot.innerHTML = `
       <div id="vjoy-base"
-        class="fixed left-4 bottom-20 z-30 w-28 h-28 rounded-full bg-[#2A130C]/40 border-2 border-[#FAD364]/65 backdrop-blur-sm flex items-center justify-center touch-none select-none shadow-lg transition-opacity"
+        class="fixed left-4 bottom-20 z-30 w-28 h-28 rounded-full bg-[#2A130C]/40 border-2 border-[#FAD364]/70 backdrop-blur-sm flex items-center justify-center touch-none select-none shadow-lg transition-opacity"
         style="opacity: 0.44;">
-        <div class="w-16 h-16 rounded-full border border-dashed border-[#FFF3C4]/45 pointer-events-none"></div>
+        <div class="w-16 h-16 rounded-full border border-dashed border-[#FFF3C4]/50 pointer-events-none"></div>
         <div id="vjoy-knob"
           class="absolute w-12 h-12 rounded-full bg-gradient-to-b from-[#FCE07C] to-[#D97706] border-2 border-white shadow-md pointer-events-none flex items-center justify-center text-xs font-bold text-[#4A1C0A]">
           ✦
         </div>
-        <span class="absolute -bottom-6 text-[11px] font-black text-[#1C2D28] bg-[#FFFBF2]/95 border border-[#C98A28] px-2.5 py-0.5 rounded-full shadow pointer-events-none whitespace-nowrap">移動搖桿</span>
+        <span class="absolute -bottom-6 text-[11px] font-black text-[#1C2D28] bg-[#FFFBF2] border border-[#C98A28] px-2.5 py-0.5 rounded-full shadow pointer-events-none whitespace-nowrap">移動搖桿</span>
       </div>
     `;
 
@@ -111,7 +111,7 @@ export class VirtualJoystickUI {
 
     this.actionRoot.innerHTML = `
       <div class="fixed right-4 bottom-28 sm:bottom-20 z-30 flex flex-col items-end gap-1.5 animate-fade-in">
-        <div class="px-3 py-1 rounded-full bg-[#FFFBF2]/98 border-2 border-[#8E1515] text-[#240E08] text-xs font-black shadow-md">
+        <div class="px-3 py-1 rounded-full bg-[#FFFBF2] border-2 border-[#8E1515] text-[#240E08] text-xs font-black shadow-md">
           已進入【${this._esc(target.title)}】
         </div>
         <button id="btn-proximity-interact"

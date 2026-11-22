@@ -14,7 +14,8 @@ export class WorshipGuideUI {
 
     this.mode = 'guided';
     this.completed = new Set(Array.isArray(initialCompleted) ? initialCompleted : []);
-    this.collapsed = false;
+    // 手機螢幕預設收合參拜進度條，避免遮住一半畫面（點一下即可展開！）
+    this.collapsed = window.innerWidth < 640;
     this.render();
   }
 
@@ -40,7 +41,7 @@ export class WorshipGuideUI {
     const allDone = doneCount === WORSHIP_STEPS.length;
 
     this.container.innerHTML = `
-      <div class="bg-[#FFFBF2]/94 backdrop-blur-md border-2 border-[#C98A28] rounded-2xl shadow-lg p-3 w-[285px] sm:w-[325px] text-[#261109]">
+      <div class="bg-[#FFFBF2] border-2 border-[#C98A28] rounded-2xl shadow-lg p-2.5 sm:p-3 w-[250px] sm:w-[325px] text-[#261109]">
         <div class="flex items-center justify-between gap-2 mb-2">
           <div class="flex items-center gap-1.5">
             <span class="text-lg">🏮</span>

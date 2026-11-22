@@ -65,7 +65,7 @@ export class RPGNarratorUI {
     }
 
     bannerHost.innerHTML = `
-      <div class="px-5 py-2.5 rounded-2xl bg-[#FFFBF2]/97 border-2 border-[#8E1515] text-[#240E08] shadow-[0_8px_28px_rgba(16,24,20,0.28)] backdrop-blur-md flex items-center gap-2.5 animate-fade-in">
+      <div class="px-5 py-2.5 rounded-2xl bg-[#FFFBF2] border-2 border-[#8E1515] text-[#240E08] shadow-[0_8px_28px_rgba(16,24,20,0.28)] flex items-center gap-2.5 animate-fade-in">
         <span class="text-lg shrink-0">${icon}</span>
         <span id="rpg-banner-text" class="text-xs sm:text-sm font-black tracking-wide leading-snug"></span>
       </div>
@@ -92,7 +92,7 @@ export class RPGNarratorUI {
     this.root.innerHTML = `
       <div id="rpg-dialog-wrap" class="fixed left-1/2 -translate-x-1/2 bottom-20 sm:bottom-24 z-50 w-[94vw] max-w-2xl animate-fade-in select-none">
         <div id="rpg-dialog-card"
-          class="relative cursor-pointer bg-[#FFFBF2]/98 border-2 border-[#B46B24] ring-2 ring-[#8E1515]/20 rounded-3xl shadow-[0_16px_42px_rgba(16,24,20,0.38)] backdrop-blur-md px-5 py-4 text-[#1C2D28]">
+          class="relative cursor-pointer bg-[#FFFBF2] border-2 border-[#B46B24] ring-2 ring-[#8E1515]/20 rounded-3xl shadow-[0_16px_42px_rgba(16,24,20,0.38)] px-5 py-4 text-[#1C2D28]">
           <!-- 說話角色立牌標籤 -->
           <div class="flex items-center justify-between gap-3 mb-2">
             <div class="flex items-center gap-2.5">

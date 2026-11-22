@@ -28,7 +28,7 @@ function showToast(message, duration = 3600) {
   const host = document.getElementById('toast-host');
   if (!host) return;
   const el = document.createElement('div');
-  el.className = 'px-4 py-2.5 rounded-2xl bg-[#FFFBF2]/98 text-[#240E08] border-2 border-[#8E1515] shadow-[0_8px_24px_rgba(16,24,20,0.28)] text-xs sm:text-sm font-black backdrop-blur-md transition-all duration-300';
+  el.className = 'px-4 py-2.5 rounded-2xl bg-[#FFFBF2] text-[#240E08] border-2 border-[#8E1515] shadow-[0_8px_24px_rgba(16,24,20,0.28)] text-xs sm:text-sm font-black transition-all duration-300';
   el.textContent = message;
   host.appendChild(el);
   setTimeout(() => {
@@ -38,7 +38,8 @@ function showToast(message, duration = 3600) {
   }, duration);
 }
 
-function initApp() {
+async function initApp() {
+  window.__setTempleLoader?.(28, '正在讀取香火存檔與宮廟設定…');
   const canvasHost = document.getElementById('scene-container');
   const guideHost = document.getElementById('worship-guide-host');
   const welcomeRoot = document.getElementById('welcome-root');
@@ -195,14 +196,16 @@ function initApp() {
     onSpeak: (text) => sceneCtrl.showPlayerBubble(text)
   });
 
-  // 2. 初始化 V6 新廟 3D 場景（安定區港口里新廟 × 全面透明化遮擋防線 × 上帝視角 × 按 [E] 互動）
+  // 2. 分階段非同步初始化 3D 新廟場景（即時回報載入進度條，不卡頓、手機更流暢！）
+  const initialSceneState = {
+    bulletin: storageSync.getBulletin(),
+    taisui: storageSync.getTaiSuiList(),
+    offerings: storageSync.getOfferings(),
+    playerPresetId: savedPlayer.presetId || 'youngMale'
+  };
   sceneCtrl = new TempleSceneController(canvasHost, {
-    initialState: {
-      bulletin: storageSync.getBulletin(),
-      taisui: storageSync.getTaiSuiList(),
-      offerings: storageSync.getOfferings(),
-      playerPresetId: savedPlayer.presetId || 'youngMale'
-    },
+    deferInit: true,
+    initialState: initialSceneState,
     onProximityChange: (target) => joyUI?.setProximityTarget(target),
     onActionHotkey: () => {
       if (welcomeRoot.innerHTML.trim() || modalRoot.innerHTML.trim() || rpgNarrator?.active) return;
@@ -214,6 +217,10 @@ function initApp() {
       soundEngine.setMusicDucking(1.0);
     },
     onBroadcastPresence: (pose) => storageSync.broadcastPresence(pose)
+  });
+
+  await sceneCtrl.initAsync(initialSceneState, (pct, msg) => {
+    window.__setTempleLoader?.(pct, msg);
   });
 
   if (playerStatus.hasIncense) {
@@ -508,6 +515,12 @@ function initApp() {
     }
   });
   welcomeUI.open();
+  window.__finishTempleLoader?.();
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
+window.addEventListener('DOMContentLoaded', () => {
+  initApp().catch((err) => {
+    console.error('[DeciTemple] initApp error:', err);
+    window.__finishTempleLoader?.();
+  });
+});

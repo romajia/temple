@@ -500,7 +500,7 @@ export class TempleModalsUI {
     const totalSavedTaps = storageSync.getPlayer().chantTotalTaps || 0;
 
     this.chantRoot.innerHTML = `
-      <div class="fixed left-1/2 -translate-x-1/2 bottom-16 z-40 w-[94vw] max-w-2xl bg-[#FFFBF2]/98 backdrop-blur-md border-2 border-[#8E1515] rounded-3xl shadow-[0_14px_40px_rgba(16,24,20,0.35)] p-4 text-[#240E08]">
+      <div class="fixed left-1/2 -translate-x-1/2 bottom-16 z-40 w-[94vw] max-w-2xl bg-[#FFFBF2] border-2 border-[#8E1515] rounded-3xl shadow-[0_14px_40px_rgba(16,24,20,0.35)] p-4 text-[#240E08]">
         <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#E5D4B3]">
           <div class="flex flex-wrap items-center gap-2">
             <span class="px-2.5 py-1 rounded-full bg-[#F5E6CC] border border-[#C98A28] text-xs font-black text-[#8E1515]">🙏 ${this._esc(this.chantMatLabel || '正殿拜墊')}</span>

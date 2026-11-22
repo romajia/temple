@@ -51,25 +51,81 @@ export class TempleSceneController {
     this.pointerDownPos = { x: 0, y: 0 };
     this.presenceTimer = 0;
     this.pendingBubble = '';
+    this.occlusionTimer = 0;
+    this.cachedHitGroups = new Set();
+    this.isMobileDevice = window.innerWidth <= 900 || 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
 
+    if (!callbacks.deferInit) {
+      this._initSync(callbacks.initialState || {});
+    }
+  }
+
+  _initSync(initialState = {}) {
     this._initRenderer();
     this._initSceneAndLights();
     this.collision = new TempleCollisionSystem();
-    this._initTemple(callbacks.initialState || {});
+    this._initTemple(initialState);
     this.atmosphere = new DayNightAtmosphere(this.scene, this.lights, this.refs);
-    this._initPlayerAvatar(callbacks.initialState?.playerPresetId || 'youngMale');
+    this._initPlayerAvatar(initialState?.playerPresetId || 'youngMale');
     this.npcManager = new TempleNPCManager(this.scene, this.collision);
     this._initParticles();
     this._initGroundRipple();
     this._initControlsAndEvents();
+    this._seedInitialCenserIncense();
 
     this.animate = this.animate.bind(this);
     this.animate();
   }
 
+  /**
+   * ★ 分階段非同步初始化：每步交還瀏覽器繪製權，讓載入進度條絲滑跑動、手機絕不卡死！
+   */
+  async initAsync(initialState = {}, onProgress = null) {
+    const nextFrame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 16)));
+    onProgress?.(34, '正在啟動 3D 渲染引擎與晨光照明…');
+    await nextFrame();
+    this._initRenderer();
+    this._initSceneAndLights();
+    this.collision = new TempleCollisionSystem();
+
+    onProgress?.(54, '正在精雕紅瓦藍脊、燕尾屋頂與正殿神龕…');
+    await nextFrame();
+    this._initTemple(initialState);
+
+    onProgress?.(74, '正在點亮天公爐香火、嫋嫋香煙與錦鯉池…');
+    await nextFrame();
+    this.atmosphere = new DayNightAtmosphere(this.scene, this.lights, this.refs);
+    this._seedInitialCenserIncense();
+    this._initParticles();
+    this._initGroundRipple();
+
+    onProgress?.(88, '正在迎接廟公阿財伯與同場線上香客…');
+    await nextFrame();
+    this._initPlayerAvatar(initialState?.playerPresetId || 'youngMale');
+    this.npcManager = new TempleNPCManager(this.scene, this.collision);
+    this._initControlsAndEvents();
+
+    onProgress?.(96, '正在渲染第一幀大廟全景…');
+    await nextFrame();
+    this.renderer.render(this.scene, this.camera);
+    this.animate = this.animate.bind(this);
+    this.animate();
+  }
+
+  /**
+   * 開場於天公爐與正殿主爐預插 6 柱燃燒中清香（香火鼎盛，立即見紅點火光與嫋嫋輕煙！）
+   */
+  _seedInitialCenserIncense() {
+    this.insertThreeIncenseSticks('tiangong');
+    this.insertThreeIncenseSticks('tiangong');
+    this.insertThreeIncenseSticks('main');
+    this.insertThreeIncenseSticks('main');
+  }
+
   _initRenderer() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+    const maxDpr = this.isMobileDevice ? 1.25 : 1.5;
+    this.renderer = new THREE.WebGLRenderer({ antialias: !this.isMobileDevice, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -83,11 +139,13 @@ export class TempleSceneController {
     this.scene.background = new THREE.Color('#9AC0B2');
     this.scene.fog = new THREE.Fog('#A6C8BC', 64, 160);
 
-    // ★ 溫潤細膩 PBR 環境反射（控制於柔和 0.30，保留金飾光澤同時避免白天畫面過曝刺眼！）
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.30;
-    pmrem.dispose();
+    // 桌機啟用 PBR 溫潤環境反射；手機略過重度 PMREM 貼圖大幅加速啟動並避免 WebGL 記憶體爆掉！
+    if (!this.isMobileDevice) {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      this.scene.environmentIntensity = 0.30;
+      pmrem.dispose();
+    }
 
     this.camera = new THREE.PerspectiveCamera(
       TEMPLE_CONFIG.camera.fov || 35,
@@ -96,14 +154,15 @@ export class TempleSceneController {
       220
     );
 
-    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, 0.76);
+    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, this.isMobileDevice ? 0.92 : 0.76);
     this.scene.add(hemi);
 
     const sun = new THREE.DirectionalLight(0xFFF0D4, 1.48);
     sun.position.set(22, 36, 24);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.radius = 2.8;
+    const shadowRes = this.isMobileDevice ? 1024 : 1536;
+    sun.shadow.mapSize.set(shadowRes, shadowRes);
+    sun.shadow.radius = 2.6;
     sun.shadow.camera.near = 2;
     sun.shadow.camera.far = 105;
     sun.shadow.camera.left = -36;
@@ -159,9 +218,18 @@ export class TempleSceneController {
 
   _initParticles() {
     this.particles = new TempleParticleEffects(this.scene);
-    this.particles.addSmokeEmitter(() => this.player.getIncenseSmokeWorldPos(), 0.13, 0.78);
-    this.particles.addSmokeEmitter(() => this.refs.tiangongSmokePos, 0.24, 1.05);
-    this.particles.addSmokeEmitter(() => this.refs.mainCenserSmokePos, 0.26, 1.0);
+    // 手持清香輕煙
+    this.particles.addSmokeEmitter(() => this.player?.getIncenseSmokeWorldPos?.() || null, 0.19, 0.72, 0.06);
+    // ★ 天公爐燒香：兩股緩緩搖曳上升的嫋嫋輕煙！
+    this.particles.addSmokeEmitter(() => this.refs.tiangongSmokePos, 0.22, 1.12, 0.26);
+    this.particles.addSmokeEmitter(
+      () => this.refs.tiangongSmokePos.clone().add(new THREE.Vector3(0.08, 0.06, -0.06)),
+      0.31,
+      0.92,
+      0.20
+    );
+    // ★ 正殿主神香爐燒香：緩緩搖曳上升的莊嚴香煙！
+    this.particles.addSmokeEmitter(() => this.refs.mainCenserSmokePos, 0.24, 1.05, 0.24);
     this.particles.setFurnaceOrigin(this.refs.furnaceOrigin);
   }
 
@@ -756,40 +824,42 @@ export class TempleSceneController {
   _updateWallOcclusion(dt) {
     if (this.occludableMeshes.length === 0) return;
 
-    const p = this.player.root.position;
-    const camPos = this.camera.position;
-    const hitGroups = new Set();
+    // 節流射線偵測至約 15Hz（大幅降低 75% CPU 負載，同時保留 60fps 絲滑透明度漸變！）
+    this.occlusionTimer -= dt;
+    if (this.occlusionTimer <= 0) {
+      this.occlusionTimer = 0.065;
+      const p = this.player.root.position;
+      const camPos = this.camera.position;
+      const hitGroups = new Set();
 
-    // 只要主角進入大殿範圍內（或開啟上帝視角看大殿），自動將前後兩進大屋頂半透明化！
-    const hb = TEMPLE_CONFIG.hallBounds;
-    const insideHall = p.x >= hb.minX - 0.4 && p.x <= hb.maxX + 0.4 && p.z >= hb.minZ - 0.4 && p.z <= hb.maxZ + 0.8;
-    if (insideHall || this.godViewEnabled) {
-      hitGroups.add('roof-front');
-      hitGroups.add('roof-main');
-    }
-
-    const samples = [
-      [0, 0.55, 0],
-      [0, 1.15, 0],
-      [0, 1.72, 0],
-      [-0.45, 1.15, 0],
-      [0.45, 1.15, 0]
-    ];
-    for (const [ox, oy, oz] of samples) {
-      const targetPt = new THREE.Vector3(p.x + ox, p.y + oy, p.z + oz);
-      const dir = targetPt.sub(camPos);
-      const dist = dir.length();
-      if (dist < 0.6) continue;
-
-      this.occlusionRay.set(camPos, dir.normalize());
-      this.occlusionRay.far = dist - 0.45;
-      const hits = this.occlusionRay.intersectObjects(this.occludableMeshes, false);
-      for (const hit of hits) {
-        const gid = hit.object.userData?.occludeGroupId;
-        if (gid) hitGroups.add(gid);
+      const hb = TEMPLE_CONFIG.hallBounds;
+      const insideHall = p.x >= hb.minX - 0.4 && p.x <= hb.maxX + 0.4 && p.z >= hb.minZ - 0.4 && p.z <= hb.maxZ + 0.8;
+      if (insideHall || this.godViewEnabled) {
+        hitGroups.add('roof-front');
+        hitGroups.add('roof-main');
       }
+
+      const samples = this.isMobileDevice
+        ? [[0, 0.95, 0], [0, 1.55, 0], [0, 0.45, 0]]
+        : [[0, 0.55, 0], [0, 1.15, 0], [0, 1.72, 0], [-0.45, 1.15, 0], [0.45, 1.15, 0]];
+      for (const [ox, oy, oz] of samples) {
+        const targetPt = new THREE.Vector3(p.x + ox, p.y + oy, p.z + oz);
+        const dir = targetPt.sub(camPos);
+        const dist = dir.length();
+        if (dist < 0.6) continue;
+
+        this.occlusionRay.set(camPos, dir.normalize());
+        this.occlusionRay.far = dist - 0.45;
+        const hits = this.occlusionRay.intersectObjects(this.occludableMeshes, false);
+        for (const hit of hits) {
+          const gid = hit.object.userData?.occludeGroupId;
+          if (gid) hitGroups.add(gid);
+        }
+      }
+      this.cachedHitGroups = hitGroups;
     }
 
+    const hitGroups = this.cachedHitGroups;
     const speed = Math.min(1, dt * 9);
     for (const mesh of this.occludableMeshes) {
       const gid = mesh.userData?.occludeGroupId;

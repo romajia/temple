@@ -28,7 +28,7 @@ export class WorldChatBarUI {
     this.root.innerHTML = `
       <div id="world-chat-container" class="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 w-[92vw] sm:w-[460px] max-w-[calc(100vw-24px)] flex flex-col items-center gap-1.5 pointer-events-auto">
         <!-- 可展開的即時聊天紀錄抽屜（★ 溫潤宣紙底＋深墨字高對比閱讀優化！） -->
-        <div id="wc-drawer" class="hidden w-full bg-[#FFFBF2]/97 backdrop-blur-md border-2 border-[#C98A28] rounded-2xl shadow-2xl overflow-hidden text-[#1C2D28] animate-fade-in">
+        <div id="wc-drawer" class="hidden w-full bg-[#FFFBF2] border-2 border-[#C98A28] rounded-2xl shadow-2xl overflow-hidden text-[#1C2D28] animate-fade-in">
           <div class="px-3.5 py-2 bg-[#F4E6C8] border-b border-[#D4B47C] flex items-center justify-between text-xs">
             <span class="font-black text-[#8E1515]">💬 廟埕即時聊天頻道（訊息同步浮現頭頂）</span>
             <button id="wc-close-drawer" type="button" class="text-[#183C32] hover:text-[#8E1515] font-black px-1">收合 ▼</button>
@@ -45,7 +45,7 @@ export class WorldChatBarUI {
         </div>
 
         <!-- 主輸入列（常駐底部） -->
-        <form id="wc-form" class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#FFFBF2]/97 border-2 border-[#C98A28] shadow-[0_8px_24px_rgba(16,28,22,0.28)] backdrop-blur-md">
+        <form id="wc-form" class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-2xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_8px_24px_rgba(16,28,22,0.28)]">
           <button id="wc-toggle-drawer" type="button" title="展開/收合聊天紀錄"
             class="shrink-0 px-2.5 h-8 rounded-xl bg-[#F3E6CA] hover:bg-[#E7D1A4] text-[#3B2010] text-xs font-black transition flex items-center gap-1 border border-[#D4B47C]">
             <span>💬</span>

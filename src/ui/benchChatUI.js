@@ -45,7 +45,7 @@ export class BenchChatUI {
     const syncLabel = storageSync.getSyncModeLabel();
 
     this.container.innerHTML = `
-      <div class="fixed left-3 right-3 sm:left-5 sm:right-auto bottom-20 z-40 sm:w-[400px] bg-[#FFFBF2]/92 backdrop-blur-md border-2 border-[#B46B24] rounded-2xl shadow-2xl overflow-hidden text-[#261109] animate-fade-in">
+      <div class="fixed left-3 right-3 sm:left-5 sm:right-auto bottom-20 z-40 sm:w-[400px] bg-[#FFFBF2] border-2 border-[#B46B24] rounded-2xl shadow-2xl overflow-hidden text-[#261109] animate-fade-in">
         <div class="bg-gradient-to-r from-[#5A2A14] to-[#7D3E1E] px-4 py-2.5 flex items-center justify-between text-[#FFF8E2]">
           <div>
             <div class="font-bold text-sm flex items-center gap-1.5">

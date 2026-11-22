@@ -7,6 +7,38 @@
  */
 import * as THREE from 'three';
 
+/**
+ * 繪製柔和羽化「嫋嫋輕煙雲紋」貼圖（邊緣完全柔化，呈現象真香火微霧質感！）
+ */
+function createSoftSmokeTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 128, 128);
+
+  // 三團錯落柔光霧核，營造細膩煙絲層次
+  [
+    [64, 64, 58, 0.72],
+    [52, 56, 36, 0.45],
+    [76, 70, 34, 0.42]
+  ].forEach(([cx, cy, r, a]) => {
+    const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, r);
+    g.addColorStop(0, `rgba(255, 253, 248, ${a})`);
+    g.addColorStop(0.42, `rgba(242, 238, 230, ${a * 0.55})`);
+    g.addColorStop(0.76, `rgba(224, 222, 218, ${a * 0.18})`);
+    g.addColorStop(1, 'rgba(220, 220, 220, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export class TempleParticleEffects {
   constructor(scene) {
     this.scene = scene;
@@ -16,7 +48,7 @@ export class TempleParticleEffects {
     this.flyingPapers = [];
     this.prayerBeams = [];
 
-    this.smokeGeo = new THREE.SphereGeometry(0.11, 8, 8);
+    this.smokeTexture = createSoftSmokeTexture();
     this.fireGeo = new THREE.ConeGeometry(0.16, 0.44, 6);
     this.sparkGeo = new THREE.OctahedronGeometry(0.085, 0);
 
@@ -25,8 +57,8 @@ export class TempleParticleEffects {
     this.furnaceBoost = 0;
   }
 
-  addSmokeEmitter(getPos, rate = 0.16, scale = 1.0) {
-    this.smokeEmitters.push({ getPos, rate, timer: Math.random() * rate, scale });
+  addSmokeEmitter(getPos, rate = 0.22, scale = 1.0, spread = 0.14) {
+    this.smokeEmitters.push({ getPos, rate, timer: Math.random() * rate, scale, spread });
   }
 
   setFurnaceOrigin(vec3) {
@@ -151,26 +183,42 @@ export class TempleParticleEffects {
     }
   }
 
-  _spawnSmoke(pos, scale = 1.0) {
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xF7F3EC,
+  _spawnSmoke(pos, scale = 1.0, spread = 0.14) {
+    // 柔霧輕煙 Sprite：隨風緩緩搖曳上升，由纖細煙絲舒展淡散！
+    if (this.smokeParticles.length > 90) return;
+    const mat = new THREE.SpriteMaterial({
+      map: this.smokeTexture,
+      color: 0xFAF7F0,
       transparent: true,
-      opacity: 0.48,
-      depthWrite: false
+      opacity: 0.01,
+      depthWrite: false,
+      toneMapped: false
     });
-    const mesh = new THREE.Mesh(this.smokeGeo, mat);
-    mesh.position.copy(pos);
-    mesh.scale.setScalar(0.55 * scale);
-    mesh.userData = {
-      vx: (Math.random() - 0.5) * 0.16,
-      vy: 0.58 + Math.random() * 0.25,
-      vz: (Math.random() - 0.5) * 0.16,
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set(
+      pos.x + (Math.random() - 0.5) * spread,
+      pos.y + Math.random() * 0.06,
+      pos.z + (Math.random() - 0.5) * spread
+    );
+    sprite.scale.setScalar(0.24 * scale);
+    sprite.material.rotation = Math.random() * Math.PI * 2;
+    sprite.userData = {
+      originX: sprite.position.x,
+      originZ: sprite.position.z,
+      vy: 0.28 + Math.random() * 0.14,          // 緩緩優雅上升速度
+      driftX: (Math.random() - 0.5) * 0.08,
+      driftZ: (Math.random() - 0.5) * 0.08,
+      swayAmp: (0.14 + Math.random() * 0.16) * Math.min(1.3, scale), // 明顯柔和左右搖曳幅寬
+      swayFreq: 1.15 + Math.random() * 0.65,
+      phase: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.45,
       life: 0,
-      maxLife: 1.7 + Math.random() * 1.0,
-      baseScale: scale
+      maxLife: 3.6 + Math.random() * 1.3,       // 緩緩飄升 3.6～4.9 秒！
+      baseScale: scale,
+      maxOpacity: 0.54
     };
-    this.scene.add(mesh);
-    this.smokeParticles.push(mesh);
+    this.scene.add(sprite);
+    this.smokeParticles.push(sprite);
   }
 
   _spawnFireParticle(isBurst = false) {
@@ -202,14 +250,14 @@ export class TempleParticleEffects {
   }
 
   update(dt, elapsed) {
-    // 1. 香煙發射器
+    // 1. 香煙發射器（嫋嫋搖曳輕煙）
     for (const emitter of this.smokeEmitters) {
       const pos = emitter.getPos();
       if (!pos) continue;
       emitter.timer += dt;
       if (emitter.timer >= emitter.rate) {
         emitter.timer = 0;
-        this._spawnSmoke(pos, emitter.scale);
+        this._spawnSmoke(pos, emitter.scale, emitter.spread || 0.14);
       }
     }
 
@@ -278,7 +326,7 @@ export class TempleParticleEffects {
       orb.material.opacity = Math.sin(t * Math.PI);
     }
 
-    // 5. 更新煙霧
+    // 5. 更新嫋嫋香煙（雙重正弦 S 形柔風搖曳、緩緩升起、漸顯漸散！）
     for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
       const p = this.smokeParticles[i];
       const u = p.userData;
@@ -290,11 +338,24 @@ export class TempleParticleEffects {
         continue;
       }
       const ratio = u.life / u.maxLife;
-      p.position.x += (u.vx + Math.sin(elapsed * 2.5 + i) * 0.12) * dt;
-      p.position.y += u.vy * dt;
-      p.position.z += u.vz * dt;
-      p.scale.setScalar((0.55 + ratio * 1.35) * u.baseScale);
-      p.material.opacity = 0.46 * (1 - ratio);
+      const swayScale = Math.min(1, ratio * 2.2); // 剛離開香頭先筆直細升，越高越隨微風搖曳舒展！
+      const waveX =
+        Math.sin(elapsed * u.swayFreq + u.phase) * u.swayAmp * swayScale +
+        Math.sin(elapsed * 0.65 + u.life * 1.4 + u.phase) * (u.swayAmp * 0.45) * swayScale;
+      const waveZ =
+        Math.cos(elapsed * (u.swayFreq * 0.82) + u.phase) * (u.swayAmp * 0.72) * swayScale;
+
+      p.position.y += u.vy * (1.0 - ratio * 0.25) * dt;
+      p.position.x = u.originX + u.driftX * u.life + waveX;
+      p.position.z = u.originZ + u.driftZ * u.life + waveZ;
+      p.material.rotation += u.spin * dt;
+
+      const s = (0.24 + Math.pow(ratio, 0.82) * 1.05) * u.baseScale;
+      p.scale.set(s * 0.92, s * 1.12, 1);
+      // 平滑淡入（前 18%）→ 優雅淡出（後 82%）
+      const fadeIn = Math.min(1, ratio / 0.18);
+      const fadeOut = Math.pow(1 - ratio, 1.35);
+      p.material.opacity = u.maxOpacity * fadeIn * fadeOut;
     }
 
     // 6. 更新火焰
