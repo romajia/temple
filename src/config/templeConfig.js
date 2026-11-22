@@ -667,38 +667,38 @@ export const WORSHIP_STEPS = [
     zoneId: 'incense',
     title: '① 點香領金紙',
     short: '點香',
-    hint: '走到正殿左側「香燭金紙區」按 [E] 點燃三柱清香'
+    hint: '前往正殿左側「香燭金紙區」點燃三柱清香'
   },
   {
     step: 2,
     key: 'tiangong',
     zoneId: 'tiangong',
     title: '② 拜天公',
-    short: '拜天公',
-    hint: '走到天公爐靠廟一側按 [E] 向外三拜並直接插香'
+    short: '天公',
+    hint: '立於天公爐靠廟一側，向外三拜並直接插香'
   },
   {
     step: 3,
     key: 'offering',
     zoneId: 'offeringTable',
     title: '③ 擺放供品',
-    short: '獻供品',
-    hint: '走到正殿大供桌按 [E] 獻上香火背包供品並祈願'
+    short: '供品',
+    hint: '前往正殿大供桌，獻上香火背包供品並祈願'
   },
   {
     step: 4,
     key: 'mainDeity',
     zoneId: 'mainWorship',
     title: '④ 拜主神',
-    short: '拜主神',
-    hint: '走到正殿中央走道正面神明按 [E] 三拜並插香'
+    short: '主神',
+    hint: '立於正殿中央走道，正面神明三拜並插香'
   },
   {
     step: 5,
     key: 'furnace',
     zoneId: 'furnace',
     title: '⑤ 燒金紙',
-    short: '燒金紙',
-    hint: '繞行至廟宇右側外部「寶塔金爐」按 [E] 逐張化金'
+    short: '化金',
+    hint: '前往廟宇右側「寶塔金爐」逐張化金祈福'
   }
 ];

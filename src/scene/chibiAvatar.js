@@ -363,9 +363,7 @@ export class ChibiAvatar {
       this.incenseGroup.add(stick, base, ember);
     });
 
-    this.incenseLight = new THREE.PointLight(0xFF8C33, 0.9, 2.8);
-    this.incenseLight.position.set(0, 0.35, 0);
-    this.incenseGroup.add(this.incenseLight);
+    // ★ 移除每位角色獨立的 PointLight（避免 11 位 NPC 堆疊超過 20 盞點光源導致手機 WebGL Shader 崩潰白屏！）
     this.torso.add(this.incenseGroup);
   }
 
@@ -809,7 +807,7 @@ export class ChibiAvatar {
     this.leftArm.rotation.z += (lArmZ - this.leftArm.rotation.z) * lerp;
     this.rightArm.rotation.z += (rArmZ - this.rightArm.rotation.z) * lerp;
 
-    if (this.holdingIncense) {
+    if (this.holdingIncense && this.incenseLight) {
       this.incenseLight.intensity = 0.72 + Math.sin(elapsed * 9.5) * 0.22;
     }
   }

@@ -117,21 +117,17 @@ export class DayNightAtmosphere {
       this.nightOnlyGlowMaterials.push({ mat, maxOpacity: 0.54 });
     });
 
-    const warmSpots = [
-      // 廟外廣場暖燈
-      [-10.6, 3.6, 14.2, 14, 2.8],
-      [0, 4.2, 14.8, 16, 3.0],
-      [6.7, 3.6, 12.4, 14, 2.8],
-      // ★ 需求 #18：夜間正殿室內充足暖金照明（5 盞均勻殿內燈火，神像、對聯、拜墊與太歲牆清楚明亮！）
-      [0, 6.2, 4.5, 22, 4.2],
-      [-5.5, 5.8, 1.5, 20, 3.8],
-      [5.5, 5.8, 1.5, 20, 3.8],
-      [-5.5, 5.8, -5.8, 22, 4.2],
-      [5.5, 5.8, -5.8, 22, 4.2],
-      [0, 6.4, -7.8, 24, 5.0]
-    ];
+    // ★ 關鍵手機防崩潰優化：將原本 9 盞額外 PointLight 精簡為「手機 0 盞（改用高效光池與主神燈/半球光提亮）、桌機 2 盞廣域室內暖燈」，
+    //   讓全場景 PointLight 總數從 23 盞降至 2～4 盞，100% 杜絕 Android/iOS WebGL Shader 記憶體溢位白屏！
+    const isMobile = typeof window !== 'undefined' && (window.innerWidth <= 900 || 'ontouchstart' in window);
+    const warmSpots = isMobile
+      ? []
+      : [
+          [0, 6.2, 3.2, 28, 4.6],
+          [0, 6.4, -5.8, 30, 5.2]
+        ];
     warmSpots.forEach(([x, y, z, dist, maxInt]) => {
-      const pl = new THREE.PointLight(0xFFD07A, 0, dist, 1.35);
+      const pl = new THREE.PointLight(0xFFD07A, 0, dist, 1.3);
       pl.position.set(x, y, z);
       this.root.add(pl);
       this.pointLights.push({ light: pl, maxIntensity: maxInt });

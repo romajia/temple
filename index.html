@@ -253,14 +253,20 @@
   <!-- 3D 廟宇場景全螢幕畫布 -->
   <div id="scene-container" class="fixed inset-0 w-full h-full"></div>
 
-  <!-- 頂部文創標題列（★ 實底宣紙米白＋深墨紅高對比，全裝置 100% 清晰不透明不刺眼！） -->
-  <header class="fixed top-0 left-0 right-0 z-30 pointer-events-none px-2.5 sm:px-5 py-2 flex items-start justify-between gap-2">
-    <!-- 左上：宮廟標誌與多人即時在線膠囊 -->
-    <div class="pointer-events-auto flex flex-col gap-1.5 max-w-[58vw] sm:max-w-none">
-      <div class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_20px_rgba(16,32,26,0.24)] text-[#1C2D28]">
+  <!-- 頂部文創標題列（★ 手機／桌機響應式 UX 排版全面優化：單排對齊不折行、不遮畫面！） -->
+  <header class="fixed top-0 left-0 right-0 z-30 pointer-events-none px-2.5 sm:px-5 py-2 flex flex-col gap-1.5">
+    <div class="w-full flex items-center justify-between gap-2">
+      <!-- 左上：宮廟標誌（手機精巧單行、桌機完整全名＋在線膠囊） -->
+      <div class="pointer-events-auto flex items-center gap-2.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.22)] text-[#1C2D28] min-w-0">
         <div class="min-w-0">
-          <div class="text-[10px] sm:text-[11px] font-extrabold tracking-[0.10em] text-[#8E1515] leading-none truncate">安定區港口里・代天巡狩五府千歲</div>
-          <div class="font-serif font-black text-sm sm:text-lg tracking-[0.12em] mt-0.5 leading-tight text-[#183C32] truncate">台南港口玉勅代天府德慈宮</div>
+          <div class="text-[10px] font-extrabold tracking-[0.08em] text-[#8E1515] leading-none whitespace-nowrap">
+            <span class="sm:hidden">安定區港口里</span>
+            <span class="hidden sm:inline">安定區港口里・代天巡狩五府千歲</span>
+          </div>
+          <div class="font-serif font-black text-sm sm:text-lg tracking-[0.08em] sm:tracking-[0.12em] mt-0.5 leading-tight text-[#183C32] whitespace-nowrap">
+            <span class="sm:hidden">港口德慈宮</span>
+            <span class="hidden sm:inline">台南港口玉勅代天府德慈宮</span>
+          </div>
         </div>
         <span id="online-status-pill" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F4EC] border border-[#2F855A]/40 text-xs font-extrabold text-[#14532D] shrink-0">
           <span class="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse"></span>
@@ -268,52 +274,53 @@
         </span>
       </div>
 
-      <!-- 參拜進度引導卡 -->
-      <div id="worship-guide-host"></div>
-    </div>
+      <!-- 右上：功德背包 ＋ 晝夜切換 ＋ 配樂（永遠單排不折行！） -->
+      <div class="pointer-events-auto flex items-center justify-end gap-1 sm:gap-1.5 shrink-0">
+        <button id="btn-open-backpack"
+          class="px-2 sm:px-3 h-9 sm:h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#FEF3C7] border-2 border-[#C98A28] text-[#1C2D28] text-xs font-extrabold shadow-[0_6px_16px_rgba(16,32,26,0.2)] transition flex items-center gap-1 whitespace-nowrap"
+          title="查看隨身香火背包與每日簽到（自動存檔中）">
+          <span>✨</span>
+          <span id="hud-merit-text" class="text-[#8E1515] font-black">30 功德</span>
+          <span class="text-[#C9B082]">|</span>
+          <span>🎒<span id="hud-bag-count" class="font-black text-[#183C32] ml-0.5">2</span></span>
+        </button>
 
-    <!-- 右上：功德與香火背包 ＋ 晝夜切換 ＋ 配樂控制 -->
-    <div class="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5">
-      <button id="btn-open-backpack"
-        class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-[#FFFBF2] hover:bg-[#FEF3C7] border-2 border-[#C98A28] text-[#1C2D28] text-xs font-extrabold shadow-[0_6px_18px_rgba(16,32,26,0.22)] transition flex items-center gap-1.5"
-        title="查看隨身香火背包與每日簽到（自動存檔中）">
-        <span>✨</span>
-        <span id="hud-merit-text" class="text-[#8E1515] font-black">30 功德</span>
-        <span class="text-[#B89D72]">|</span>
-        <span>🎒 <span id="hud-bag-count" class="font-black text-[#183C32]">2</span></span>
-      </button>
+        <button id="btn-toggle-daynight"
+          class="px-2 sm:px-3 h-9 sm:h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#FEF3C7] border-2 border-[#C98A28] text-[#183C32] text-xs font-extrabold shadow-[0_6px_16px_rgba(16,32,26,0.2)] transition flex items-center gap-1 whitespace-nowrap"
+          title="切換日景／夜景">
+          <span id="daynight-icon">🌙</span>
+          <span id="daynight-label" class="hidden sm:inline">切換夜景</span>
+        </button>
 
-      <button id="btn-toggle-daynight"
-        class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-[#FFFBF2] hover:bg-[#FEF3C7] border-2 border-[#C98A28] text-[#183C32] text-xs font-extrabold shadow-[0_6px_18px_rgba(16,32,26,0.22)] transition flex items-center gap-1">
-        <span id="daynight-icon">🌙</span>
-        <span id="daynight-label" class="hidden sm:inline">切換夜景</span>
-      </button>
-
-      <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.22)] text-[#183C32]">
-        <button id="btn-toggle-audio" class="text-xs font-extrabold text-[#8E1515] hover:text-[#183C32] transition whitespace-nowrap">🔊 配樂開</button>
-        <input id="audio-volume" type="range" min="0" max="100" value="55" title="調整音量"
-          class="hidden sm:block w-16 accent-[#8E1515] cursor-pointer" />
+        <div class="flex items-center gap-1.5 px-2 sm:px-2.5 h-9 sm:h-10 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_16px_rgba(16,32,26,0.2)] text-[#183C32]">
+          <button id="btn-toggle-audio" class="text-xs font-extrabold text-[#8E1515] hover:text-[#183C32] transition whitespace-nowrap">🔊</button>
+          <input id="audio-volume" type="range" min="0" max="100" value="55" title="調整音量"
+            class="hidden sm:block w-16 accent-[#8E1515] cursor-pointer" />
+        </div>
       </div>
     </div>
+
+    <!-- 第二行左側：參拜進度引導卡（手機預設精巧收合，展開時寬度充裕不擠字！） -->
+    <div id="worship-guide-host" class="pointer-events-auto self-start"></div>
   </header>
 
   <!-- 中央上方溫馨 Toast 提示容器 -->
   <div id="toast-host" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-lg text-center"></div>
 
-  <!-- 右下角視角方案 B：固定 4 方向一鍵切換（正面／左側／右側／上帝俯瞰）＋ 縮放 ＋ 搖桿 ＋ 廟務 -->
-  <div class="fixed bottom-16 sm:bottom-3 right-2.5 sm:right-3 z-30 flex flex-wrap items-center justify-end gap-1.5">
-    <div class="flex items-center gap-0.5 p-1 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_20px_rgba(16,32,26,0.26)] text-[#183C32]">
-      <button data-cam-preset="front" title="正面視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg bg-[#8E1515] text-[#FFFDF6] text-xs font-black transition shadow-sm">正面</button>
-      <button data-cam-preset="left" title="左側視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#183C32] text-xs font-extrabold transition">左側</button>
-      <button data-cam-preset="right" title="右側視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#183C32] text-xs font-extrabold transition">右側</button>
-      <button data-cam-preset="god" title="上帝俯瞰視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#8E1515] text-xs font-black transition">👁️上帝</button>
+  <!-- 底部視角切換列（★ 手機整齊置中位於聊天框正上方 bottom-[60px]，與上方搖桿／互動鈕完全分離零重疊！） -->
+  <div class="fixed bottom-[60px] sm:bottom-3 left-2.5 right-2.5 sm:left-auto sm:right-3 z-30 flex items-center justify-between sm:justify-end gap-1.5 pointer-events-none">
+    <div class="pointer-events-auto flex items-center gap-0.5 p-1 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.24)] text-[#183C32]">
+      <button data-cam-preset="front" title="正面視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg bg-[#8E1515] text-[#FFFDF6] text-xs font-black transition shadow-sm whitespace-nowrap">正面</button>
+      <button data-cam-preset="left" title="左側視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#183C32] text-xs font-extrabold transition whitespace-nowrap">左側</button>
+      <button data-cam-preset="right" title="右側視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#183C32] text-xs font-extrabold transition whitespace-nowrap">右側</button>
+      <button data-cam-preset="god" title="上帝俯瞰視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#8E1515] text-xs font-black transition whitespace-nowrap">👁️上帝</button>
       <span class="w-px h-5 bg-[#D4BC90] mx-0.5"></span>
       <button id="cam-zoom-in" title="拉近視角" class="w-7 h-8 rounded-lg hover:bg-[#F3E6CA] text-base font-black text-[#183C32] transition">＋</button>
       <button id="cam-zoom-out" title="拉遠視角" class="w-7 h-8 rounded-lg hover:bg-[#F3E6CA] text-base font-black text-[#183C32] transition">－</button>
       <button id="btn-toggle-joy" title="顯示/隱藏左下虛擬搖桿" class="px-1.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-xs font-bold text-[#183C32] transition">🕹️</button>
     </div>
     <button id="btn-admin-entry" title="廟務管理後臺"
-      class="px-2.5 sm:px-3 h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#8E1515] text-[#8E1515] hover:text-[#FFFDF6] text-xs font-black border-2 border-[#C98A28] shadow-[0_6px_20px_rgba(16,32,26,0.26)] transition">
+      class="pointer-events-auto px-2.5 sm:px-3 h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#8E1515] text-[#8E1515] hover:text-[#FFFDF6] text-xs font-black border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.24)] transition whitespace-nowrap shrink-0">
       🏛️ 廟務
     </button>
   </div>

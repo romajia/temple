@@ -41,14 +41,14 @@ export class VirtualJoystickUI {
 
     this.joyRoot.innerHTML = `
       <div id="vjoy-base"
-        class="fixed left-4 bottom-20 z-30 w-28 h-28 rounded-full bg-[#2A130C]/40 border-2 border-[#FAD364]/70 backdrop-blur-sm flex items-center justify-center touch-none select-none shadow-lg transition-opacity"
-        style="opacity: 0.44;">
-        <div class="w-16 h-16 rounded-full border border-dashed border-[#FFF3C4]/50 pointer-events-none"></div>
+        class="fixed left-3 bottom-[122px] sm:left-4 sm:bottom-20 z-30 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#2A130C]/40 border-2 border-[#FAD364]/70 backdrop-blur-sm flex items-center justify-center touch-none select-none shadow-lg transition-opacity"
+        style="opacity: 0.56;">
+        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full border border-dashed border-[#FFF3C4]/60 pointer-events-none"></div>
         <div id="vjoy-knob"
-          class="absolute w-12 h-12 rounded-full bg-gradient-to-b from-[#FCE07C] to-[#D97706] border-2 border-white shadow-md pointer-events-none flex items-center justify-center text-xs font-bold text-[#4A1C0A]">
+          class="absolute w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-b from-[#FCE07C] to-[#D97706] border-2 border-white shadow-md pointer-events-none flex items-center justify-center text-xs font-bold text-[#4A1C0A]">
           ✦
         </div>
-        <span class="absolute -bottom-6 text-[11px] font-black text-[#1C2D28] bg-[#FFFBF2] border border-[#C98A28] px-2.5 py-0.5 rounded-full shadow pointer-events-none whitespace-nowrap">移動搖桿</span>
+        <span class="absolute -bottom-5 text-[10px] font-black text-[#1C2D28] bg-[#FFFBF2] border border-[#C98A28] px-2 py-0.5 rounded-full shadow pointer-events-none whitespace-nowrap">移動搖桿</span>
       </div>
     `;
 
@@ -110,16 +110,19 @@ export class VirtualJoystickUI {
     }
 
     this.actionRoot.innerHTML = `
-      <div class="fixed right-4 bottom-28 sm:bottom-20 z-30 flex flex-col items-end gap-1.5 animate-fade-in">
-        <div class="px-3 py-1 rounded-full bg-[#FFFBF2] border-2 border-[#8E1515] text-[#240E08] text-xs font-black shadow-md">
+      <div class="fixed right-3 bottom-[114px] sm:right-4 sm:bottom-20 z-30 flex flex-col items-end gap-1.5 animate-fade-in">
+        <div class="px-3 py-1 rounded-full bg-[#FFFBF2] border-2 border-[#8E1515] text-[#240E08] text-xs font-black shadow-md whitespace-nowrap">
           已進入【${this._esc(target.title)}】
         </div>
         <button id="btn-proximity-interact"
-          class="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-b from-[#9E1A18] to-[#731010] text-[#FFFDF6] border-2 border-[#FCE07C] shadow-[0_8px_24px_rgba(120,18,18,0.45)] hover:brightness-110 active:scale-95 transition">
-          <span class="text-2xl">${target.icon || '✨'}</span>
+          class="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-b from-[#9E1A18] to-[#731010] text-[#FFFDF6] border-2 border-[#FCE07C] shadow-[0_8px_24px_rgba(120,18,18,0.45)] hover:brightness-110 active:scale-95 transition">
+          <span class="text-xl sm:text-2xl">${target.icon || '✨'}</span>
           <div class="text-left">
-            <div class="font-black text-sm sm:text-base leading-tight">${this._esc(target.actionText || target.title)}</div>
-            <div class="text-[11px] text-[#FFE899] font-extrabold">按 [E] 鍵或點擊進入</div>
+            <div class="font-black text-sm sm:text-base leading-tight whitespace-nowrap">${this._esc(target.actionText || target.title)}</div>
+            <div class="text-[11px] text-[#FFE899] font-extrabold whitespace-nowrap">
+              <span class="sm:hidden">點擊此按鈕互動</span>
+              <span class="hidden sm:inline">按 [E] 鍵或點擊進入</span>
+            </div>
           </div>
         </button>
       </div>

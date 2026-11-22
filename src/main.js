@@ -402,10 +402,16 @@ async function initApp() {
   // ---- 右上角配樂開關與音量 ----
   const muteBtn = document.getElementById('btn-toggle-audio');
   const volSlider = document.getElementById('audio-volume');
+  const setAudioBtnUI = (isMuted) => {
+    if (!muteBtn) return;
+    muteBtn.innerHTML = isMuted
+      ? '🔇<span class="hidden sm:inline ml-1">配樂關</span>'
+      : '🔊<span class="hidden sm:inline ml-1">配樂開</span>';
+  };
   muteBtn?.addEventListener('click', () => {
     const isMuted = soundEngine.toggleMute();
     if (!isMuted) soundEngine.startAmbient();
-    muteBtn.textContent = isMuted ? '🔇 配樂關' : '🔊 配樂開';
+    setAudioBtnUI(isMuted);
   });
   volSlider?.addEventListener('input', (e) => {
     const val = Number(e.target.value) / 100;
@@ -413,7 +419,7 @@ async function initApp() {
     if (val > 0 && soundEngine.muted) {
       soundEngine.setMuted(false);
       soundEngine.startAmbient();
-      if (muteBtn) muteBtn.textContent = '🔊 配樂開';
+      setAudioBtnUI(false);
     }
   });
 
@@ -484,7 +490,7 @@ async function initApp() {
       sceneCtrl.setPlayerName(name);
       sceneCtrl.setMovementLocked(false);
       sceneCtrl.showPlayerBubble(`大家好，我是${name}！🙏`);
-      if (muteBtn) muteBtn.textContent = musicEnabled ? '🔊 配樂開' : '🔇 配樂關';
+      setAudioBtnUI(!musicEnabled);
 
       // 掛載玩家登入後專屬底部即時聊天對話框（送出立即浮在頭頂＋多人同步）
       worldChatBar.mount();

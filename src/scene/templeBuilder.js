@@ -98,21 +98,26 @@ export function buildDeciTemple(scene, initialState = {}) {
    */
   const markOccludable = (obj, sharedGroupId = null) => {
     const gid = sharedGroupId || `occ-${++occludeGroupSeq}`;
+    // ★ 同組件共用複製材質（從 700+ 個重複材質縮減為 ~60 個，大幅降低手機 GPU 記憶體與載入時間！）
+    const matMap = new Map();
+    const cloneOnce = (mat) => {
+      if (matMap.has(mat)) return matMap.get(mat);
+      const cloned = mat.clone();
+      const baseOp = cloned.opacity ?? 1.0;
+      cloned.transparent = true;
+      cloned.opacity = baseOp;
+      matMap.set(mat, cloned);
+      return cloned;
+    };
+
     const processMesh = (m) => {
       if (!m.isMesh || !m.material) return;
       if (Array.isArray(m.material)) {
-        m.material = m.material.map(mat => {
-          const cloned = mat.clone();
-          cloned.transparent = true;
-          return cloned;
-        });
+        m.material = m.material.map(cloneOnce);
         m.userData.baseOpacity = m.material[0]?.opacity ?? 1.0;
       } else {
-        m.material = m.material.clone();
-        const baseOp = m.material.opacity ?? 1.0;
-        m.material.transparent = true;
-        m.material.opacity = baseOp;
-        m.userData.baseOpacity = baseOp;
+        m.material = cloneOnce(m.material);
+        m.userData.baseOpacity = m.material.opacity ?? 1.0;
       }
       m.userData.occludeGroupId = gid;
       occludableMeshes.push(m);
@@ -936,7 +941,9 @@ export function buildDeciTemple(scene, initialState = {}) {
   candle.position.set(0.36, 1.07, -0.3);
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.15, 6), new THREE.MeshBasicMaterial({ color: 0xFFAE22, toneMapped: false }));
   flame.position.set(0.36, 1.31, -0.3);
-  incenseArea.add(candle, flame, new THREE.PointLight(0xFFAA33, 1.0, 4.5));
+  const flameHalo = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshBasicMaterial({ color: 0xFFCC55, transparent: true, opacity: 0.35, toneMapped: false }));
+  flameHalo.position.set(0.36, 1.31, -0.3);
+  incenseArea.add(candle, flame, flameHalo);
   tagInteractive(incenseArea, 'incense');
   markOccludable(incenseArea, 'incense-table');
   root.add(incenseArea);

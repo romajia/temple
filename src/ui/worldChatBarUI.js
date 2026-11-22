@@ -26,7 +26,7 @@ export class WorldChatBarUI {
   mount() {
     this.mounted = true;
     this.root.innerHTML = `
-      <div id="world-chat-container" class="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 w-[92vw] sm:w-[460px] max-w-[calc(100vw-24px)] flex flex-col items-center gap-1.5 pointer-events-auto">
+      <div id="world-chat-container" class="fixed bottom-2.5 left-2.5 right-2.5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-30 sm:w-[460px] flex flex-col items-center gap-1.5 pointer-events-auto">
         <!-- 可展開的即時聊天紀錄抽屜（★ 溫潤宣紙底＋深墨字高對比閱讀優化！） -->
         <div id="wc-drawer" class="hidden w-full bg-[#FFFBF2] border-2 border-[#C98A28] rounded-2xl shadow-2xl overflow-hidden text-[#1C2D28] animate-fade-in">
           <div class="px-3.5 py-2 bg-[#F4E6C8] border-b border-[#D4B47C] flex items-center justify-between text-xs">

@@ -123,15 +123,28 @@ export class TempleSceneController {
   }
 
   _initRenderer() {
-    const maxDpr = this.isMobileDevice ? 1.25 : 1.5;
-    this.renderer = new THREE.WebGLRenderer({ antialias: !this.isMobileDevice, powerPreference: 'high-performance' });
+    const maxDpr = this.isMobileDevice ? 1.15 : 1.5;
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: !this.isMobileDevice,
+      powerPreference: this.isMobileDevice ? 'default' : 'high-performance',
+      precision: this.isMobileDevice ? 'mediump' : 'highp'
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = this.isMobileDevice ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.94;
     this.container.appendChild(this.renderer.domElement);
+
+    // 防止手機休眠或記憶體回收造成 WebGL Context 遺失白屏
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      console.warn('[DeciTemple] WebGL context lost, awaiting restore...');
+    }, false);
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.renderer.render(this.scene, this.camera);
+    }, false);
   }
 
   _initSceneAndLights() {
@@ -139,7 +152,7 @@ export class TempleSceneController {
     this.scene.background = new THREE.Color('#9AC0B2');
     this.scene.fog = new THREE.Fog('#A6C8BC', 64, 160);
 
-    // 桌機啟用 PBR 溫潤環境反射；手機略過重度 PMREM 貼圖大幅加速啟動並避免 WebGL 記憶體爆掉！
+    // 桌機啟用 PBR 溫潤環境反射；手機略過重度 PMREM 貼圖大幅加速啟動並防止 WebGL 崩潰！
     if (!this.isMobileDevice) {
       const pmrem = new THREE.PMREMGenerator(this.renderer);
       this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -154,13 +167,13 @@ export class TempleSceneController {
       220
     );
 
-    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, this.isMobileDevice ? 0.92 : 0.76);
+    const hemi = new THREE.HemisphereLight(0xF5EAD0, 0x6B8C6A, this.isMobileDevice ? 0.95 : 0.76);
     this.scene.add(hemi);
 
     const sun = new THREE.DirectionalLight(0xFFF0D4, 1.48);
     sun.position.set(22, 36, 24);
     sun.castShadow = true;
-    const shadowRes = this.isMobileDevice ? 1024 : 1536;
+    const shadowRes = this.isMobileDevice ? 512 : 1536;
     sun.shadow.mapSize.set(shadowRes, shadowRes);
     sun.shadow.radius = 2.6;
     sun.shadow.camera.near = 2;
