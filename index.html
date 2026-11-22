@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>玉勅代天府德慈宮｜3D Q版多人線上參拜</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"PingFang TC"', '"Noto Sans TC"', '"Microsoft JhengHei"', 'sans-serif'],
+            serif: ['"Noto Serif TC"', '"DFKai-SB"', 'serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --paper: #fbf7e9;
+      --ink: #183c32;
+      --dark-pill: rgba(21, 53, 45, 0.90);
+      --accent: #e5b968;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #132738;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #scene-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.28s ease-out;
+    }
+    @keyframes bounceOnce {
+      0% { transform: translateY(-28px) scale(0.85); opacity: 0.4; }
+      55% { transform: translateY(5px) scale(1.05); opacity: 1; }
+      80% { transform: translateY(-4px) scale(0.98); }
+      100% { transform: translateY(0) scale(1); }
+    }
+    .animate-bounce-once {
+      animation: bounceOnce 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: rgba(160, 118, 62, 0.45); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</head>
+<body class="font-sans text-[#183C32]">
+  <!-- 3D 廟宇場景全螢幕畫布 -->
+  <div id="scene-container" class="fixed inset-0 w-full h-full"></div>
+
+  <!-- 頂部文創標題列 -->
+  <header class="fixed top-0 left-0 right-0 z-30 pointer-events-none px-3 sm:px-5 py-2.5 flex items-start justify-between gap-2">
+    <!-- 左上：宮廟標誌與多人即時在線膠囊 -->
+    <div class="pointer-events-auto flex flex-col gap-1.5">
+      <div class="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-[#15352D]/90 border border-[#E5B968]/55 shadow-lg backdrop-blur-md text-[#FBF7E9]">
+        <div>
+          <div class="text-[10px] font-bold tracking-[0.14em] text-[#E5B968] leading-none">安定區港口里・代天巡狩五府千歲</div>
+          <div class="font-serif font-black text-sm sm:text-base tracking-[0.14em] mt-0.5 leading-tight">玉勅代天府德慈宮</div>
+        </div>
+        <span id="online-status-pill" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/25 border border-white/15 text-[11px] font-bold text-[#DCEEE2]">
+          <span class="w-2 h-2 rounded-full bg-[#4ADE80] animate-pulse"></span>
+          <span id="online-count-text">多人連線：1 位真人</span>
+        </span>
+      </div>
+
+      <!-- 參拜進度引導卡 -->
+      <div id="worship-guide-host"></div>
+    </div>
+
+    <!-- 右上：功德與香火背包 ＋ 晝夜切換 ＋ 配樂控制 -->
+    <div class="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5">
+      <button id="btn-open-backpack"
+        class="px-3 py-2 rounded-xl bg-[#15352D]/92 hover:bg-[#1E4A3F] border border-[#E5B968]/75 text-[#FBF7E9] text-xs font-bold shadow-lg backdrop-blur-md transition flex items-center gap-1.5"
+        title="查看隨身香火背包與每日簽到（自動存檔中）">
+        <span>✨</span>
+        <span id="hud-merit-text" class="text-[#FBE39C] font-black">30 功德</span>
+        <span class="opacity-45">|</span>
+        <span>🎒 <span id="hud-bag-count">2</span></span>
+      </button>
+
+      <button id="btn-toggle-daynight"
+        class="px-3.5 py-2 rounded-xl bg-[#15352D]/92 hover:bg-[#1E4A3F] border border-[#E5B968]/65 text-[#FBF7E9] text-xs font-bold shadow-lg backdrop-blur-md transition flex items-center gap-1.5">
+        <span id="daynight-icon">🌙</span>
+        <span id="daynight-label">切換夜景</span>
+      </button>
+
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#15352D]/92 border border-[#E5B968]/55 shadow-lg backdrop-blur-md text-[#FBF7E9]">
+        <button id="btn-toggle-audio" class="text-xs font-bold text-[#F5D68E] hover:text-white transition">🔊 配樂開</button>
+        <input id="audio-volume" type="range" min="0" max="100" value="55" title="調整音量"
+          class="w-14 sm:w-20 accent-[#E5B968] cursor-pointer" />
+      </div>
+    </div>
+  </header>
+
+  <!-- 中央上方溫馨 Toast 提示容器 -->
+  <div id="toast-host" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-lg text-center"></div>
+
+  <!-- 右下角視角方案 B：固定 4 方向一鍵切換（正面／左側／右側／上帝俯瞰）＋ 縮放 ＋ 搖桿 ＋ 廟務 -->
+  <div class="fixed bottom-16 sm:bottom-3 right-3 z-30 flex flex-wrap items-center justify-end gap-1.5">
+    <div class="flex items-center gap-0.5 p-1 rounded-xl bg-[#15352D]/92 border border-[#E5B968]/60 shadow-xl backdrop-blur-md text-[#FBF7E9]">
+      <button data-cam-preset="front" title="正面視角" class="cam-preset-btn px-2 h-8 rounded-lg bg-[#E5B968] text-[#15352D] text-[11px] font-black transition">正面</button>
+      <button data-cam-preset="left" title="左側視角" class="cam-preset-btn px-2 h-8 rounded-lg hover:bg-white/15 text-[#FBF7E9] text-[11px] font-bold transition">左側</button>
+      <button data-cam-preset="right" title="右側視角" class="cam-preset-btn px-2 h-8 rounded-lg hover:bg-white/15 text-[#FBF7E9] text-[11px] font-bold transition">右側</button>
+      <button data-cam-preset="god" title="上帝俯瞰視角" class="cam-preset-btn px-2 h-8 rounded-lg hover:bg-white/15 text-[#F5D68E] text-[11px] font-black transition">👁️上帝</button>
+      <span class="w-px h-5 bg-white/15 mx-0.5"></span>
+      <button id="cam-zoom-in" title="拉近視角" class="w-7 h-8 rounded-lg hover:bg-white/15 text-base font-bold transition">＋</button>
+      <button id="cam-zoom-out" title="拉遠視角" class="w-7 h-8 rounded-lg hover:bg-white/15 text-base font-bold transition">－</button>
+      <button id="btn-toggle-joy" title="顯示/隱藏左下虛擬搖桿" class="px-1.5 h-8 rounded-lg hover:bg-white/15 text-xs font-bold text-[#F5D68E] transition">🕹️</button>
+    </div>
+    <button id="btn-admin-entry" title="廟務管理後臺"
+      class="px-2.5 h-10 rounded-xl bg-[#15352D]/88 hover:bg-[#8E2523] text-[#F5D68E] hover:text-white text-[11px] font-bold border border-[#E5B968]/55 shadow-xl backdrop-blur-md transition">
+      🏛️ 廟務
+    </button>
+  </div>
+
+  <!-- 左下角半透明虛擬搖桿 & 備用容器 -->
+  <div id="joystick-root"></div>
+  <div id="proximity-action-root"></div>
+
+  <!-- 玩家登入後底部即時聊天對話框、RPG 劇情浮現框、板凳聊天室、念經字幕與互動彈窗掛載點 -->
+  <div id="world-chat-root"></div>
+  <div id="rpg-narrator-root"></div>
+  <div id="bench-chat-root"></div>
+  <div id="chant-root"></div>
+  <div id="modal-root"></div>
+  <div id="welcome-root"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
