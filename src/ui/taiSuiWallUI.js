@@ -19,13 +19,15 @@ export class TaiSuiWallUI {
     this.justAddedId = null;
 
     storageSync.subscribe('taisui', () => {
-      if (this.isOpen) this.render();
+      if (this.isOpen) this.render({ preserveForm: true });
     });
   }
 
   open() {
     this.isOpen = true;
     this.render();
+    // 打開太歲牆立即向雲端拉取最新名單，確保信徒第一時間看到最新安奉內容！
+    storageSync.refreshCloudShared(true);
   }
 
   close() {
@@ -42,10 +44,33 @@ export class TaiSuiWallUI {
     return 'font-size: 12.5px; letter-spacing: 0.01em; line-height: 1.06;';
   }
 
-  render() {
+  render({ preserveForm = false } = {}) {
+    // 保留背景即時同步時信徒尚未送出的表單輸入與焦點，絕不中斷打字！
+    let draft = null;
+    if (preserveForm && this.modalRoot) {
+      const activeId = document.activeElement?.id || '';
+      const selStart = typeof document.activeElement?.selectionStart === 'number' ? document.activeElement.selectionStart : null;
+      const selEnd = typeof document.activeElement?.selectionEnd === 'number' ? document.activeElement.selectionEnd : null;
+      const nameEl = this.modalRoot.querySelector('#ts-input-name');
+      const zodiacEl = this.modalRoot.querySelector('#ts-input-zodiac');
+      const wishEl = this.modalRoot.querySelector('#ts-input-wish');
+      const gridEl = this.modalRoot.querySelector('#ts-wall-grid');
+      if (nameEl || zodiacEl || wishEl) {
+        draft = {
+          name: nameEl ? nameEl.value : '',
+          zodiac: zodiacEl ? zodiacEl.value : '',
+          wish: wishEl ? wishEl.value : '',
+          scrollTop: gridEl ? gridEl.scrollTop : 0,
+          activeId,
+          selStart,
+          selEnd
+        };
+      }
+    }
+
     const list = storageSync.getTaiSuiList();
     const q = this.searchQuery.trim();
-    const matches = q ? list.filter(item => item.name.includes(q)) : [];
+    const matches = q ? list.filter(item => String(item?.name || '').includes(q)) : [];
 
     this.modalRoot.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-5">
@@ -171,6 +196,25 @@ export class TaiSuiWallUI {
 
     const nameInput = this.modalRoot.querySelector('#ts-input-name');
     const countEl = this.modalRoot.querySelector('#ts-name-count');
+    if (draft) {
+      if (nameInput) nameInput.value = draft.name;
+      if (countEl) countEl.textContent = `${(draft.name || '').length} / 20`;
+      const zEl = this.modalRoot.querySelector('#ts-input-zodiac');
+      if (zEl && draft.zodiac) zEl.value = draft.zodiac;
+      const wEl = this.modalRoot.querySelector('#ts-input-wish');
+      if (wEl) wEl.value = draft.wish;
+      const gEl = this.modalRoot.querySelector('#ts-wall-grid');
+      if (gEl) gEl.scrollTop = draft.scrollTop;
+      if (draft.activeId) {
+        const focused = this.modalRoot.querySelector(`#${draft.activeId}`);
+        if (focused) {
+          focused.focus();
+          if (draft.selStart !== null && typeof focused.setSelectionRange === 'function') {
+            try { focused.setSelectionRange(draft.selStart, draft.selEnd ?? draft.selStart); } catch {}
+          }
+        }
+      }
+    }
     nameInput?.addEventListener('input', () => {
       if (countEl) countEl.textContent = `${nameInput.value.length} / 20`;
     });

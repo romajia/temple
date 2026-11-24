@@ -25,6 +25,12 @@ export class AdminPanelUI {
 
   open() {
     this.isOpen = true;
+    storageSync.refreshCloudShared(true).then(() => {
+      if (this.isOpen && this.authenticated && this.activeTab === 'taisui') {
+        const batchEl = this.modalRoot.querySelector('#adm-ts-batch');
+        if (!batchEl || !batchEl.value.trim()) this.renderDashboard();
+      }
+    });
     if (!this.authenticated) {
       this.renderLogin();
     } else {

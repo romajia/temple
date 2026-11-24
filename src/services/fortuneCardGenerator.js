@@ -68,7 +68,7 @@ export function generateFortuneCardDataURL({ userName, poem, interpretation }) {
   // 副標
   ctx.fillStyle = '#7A2E1D';
   ctx.font = '600 18px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
-  ctx.fillText('代天巡狩・五年千歲・觀音佛祖・天上聖母 靈籤', w / 2, 182);
+  ctx.fillText('觀音佛祖・代天巡狩・殿內十一尊神聖 靈籤', w / 2, 182);
 
   // 4. 籤號與吉凶大印章
   ctx.fillStyle = '#B92B27';

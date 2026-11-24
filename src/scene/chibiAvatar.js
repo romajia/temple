@@ -675,8 +675,18 @@ export class ChibiAvatar {
   }
 
   setState(nextState) {
-    this.state = nextState;
-    if (!this.isLockedInAction()) {
+    const ACTION_DURATIONS = { bow: 1.35, insert: 0.62, burn: 2.6 };
+    const prevState = this.state;
+    this.state = nextState || 'idle';
+    if (ACTION_DURATIONS[this.state]) {
+      // ★ 遠端真人玩家同步到 bow / insert / burn 時，必須給予有效 actionDuration，
+      //   否則 actionTimer / 0 會產生 Infinity -> Math.sin(Infinity) = NaN，導致 torso 與整個上半身消失只剩雙腳！
+      if (prevState !== this.state || !(this.actionDuration > 0)) {
+        this.actionTimer = 0;
+        this.actionDuration = ACTION_DURATIONS[this.state];
+        this.actionCallback = null;
+      }
+    } else {
       this.actionTimer = 0;
       this.actionCallback = null;
     }
@@ -734,43 +744,49 @@ export class ChibiAvatar {
         rArmX = stride * 0.52;
       }
     } else if (this.state === 'bow') {
+      const dur = Math.max(0.25, Number.isFinite(this.actionDuration) && this.actionDuration > 0 ? this.actionDuration : 1.35);
       this.actionTimer += dt;
-      const wave = Math.sin((this.actionTimer / this.actionDuration) * Math.PI * 3);
+      const wave = Math.sin((this.actionTimer / dur) * Math.PI * 3);
       const bend = Math.max(0, wave);
       targetTorsoPitch = bend * 0.58;
       lArmX = -1.25 - bend * 0.28;
       rArmX = -1.25 - bend * 0.28;
       lArmZ = 0.38;
       rArmZ = -0.38;
-      if (this.actionTimer >= this.actionDuration) {
+      if (this.actionTimer >= dur) {
         const cb = this.actionCallback;
         this.state = 'idle';
+        this.actionTimer = 0;
         this.actionCallback = null;
         if (cb) cb();
       }
     } else if (this.state === 'insert') {
+      const dur = Math.max(0.25, Number.isFinite(this.actionDuration) && this.actionDuration > 0 ? this.actionDuration : 0.62);
       this.actionTimer += dt;
-      const p = Math.sin((this.actionTimer / this.actionDuration) * Math.PI);
+      const p = Math.sin((this.actionTimer / dur) * Math.PI);
       targetTorsoPitch = p * 0.34;
       lArmX = -1.55 * p - 0.5 * (1 - p);
       rArmX = -1.55 * p - 0.5 * (1 - p);
       lArmZ = 0.30;
       rArmZ = -0.30;
-      if (this.actionTimer >= this.actionDuration) {
+      if (this.actionTimer >= dur) {
         const cb = this.actionCallback;
         this.state = 'idle';
+        this.actionTimer = 0;
         this.actionCallback = null;
         if (cb) cb();
       }
     } else if (this.state === 'burn') {
+      const dur = Math.max(0.25, Number.isFinite(this.actionDuration) && this.actionDuration > 0 ? this.actionDuration : 2.6);
       this.actionTimer += dt;
       const toss = Math.sin(this.actionTimer * 18.5);
       targetTorsoPitch = 0.14;
       rArmX = -0.95 - Math.max(0, toss) * 0.65;
       lArmX = -0.65;
-      if (this.actionTimer >= this.actionDuration) {
+      if (this.actionTimer >= dur) {
         const cb = this.actionCallback;
         this.state = 'idle';
+        this.actionTimer = 0;
         this.actionCallback = null;
         if (cb) cb();
       }
@@ -797,15 +813,19 @@ export class ChibiAvatar {
     }
 
     const lerp = Math.min(1, dt * 11);
-    this.bodyPivot.position.y += (targetBodyY - this.bodyPivot.position.y) * lerp;
-    this.bodyPivot.position.z += (targetBodyZ - this.bodyPivot.position.z) * lerp;
-    this.torso.rotation.x += (targetTorsoPitch - this.torso.rotation.x) * lerp;
-    this.leftLeg.rotation.x += (lLegRot - this.leftLeg.rotation.x) * lerp;
-    this.rightLeg.rotation.x += (rLegRot - this.rightLeg.rotation.x) * lerp;
-    this.leftArm.rotation.x += (lArmX - this.leftArm.rotation.x) * lerp;
-    this.rightArm.rotation.x += (rArmX - this.rightArm.rotation.x) * lerp;
-    this.leftArm.rotation.z += (lArmZ - this.leftArm.rotation.z) * lerp;
-    this.rightArm.rotation.z += (rArmZ - this.rightArm.rotation.z) * lerp;
+    const lerpSafe = (cur, target) => {
+      const t = Number.isFinite(target) ? target : 0;
+      return Number.isFinite(cur) ? cur + (t - cur) * lerp : t;
+    };
+    this.bodyPivot.position.y = lerpSafe(this.bodyPivot.position.y, targetBodyY);
+    this.bodyPivot.position.z = lerpSafe(this.bodyPivot.position.z, targetBodyZ);
+    this.torso.rotation.x = lerpSafe(this.torso.rotation.x, targetTorsoPitch);
+    this.leftLeg.rotation.x = lerpSafe(this.leftLeg.rotation.x, lLegRot);
+    this.rightLeg.rotation.x = lerpSafe(this.rightLeg.rotation.x, rLegRot);
+    this.leftArm.rotation.x = lerpSafe(this.leftArm.rotation.x, lArmX);
+    this.rightArm.rotation.x = lerpSafe(this.rightArm.rotation.x, rArmX);
+    this.leftArm.rotation.z = lerpSafe(this.leftArm.rotation.z, lArmZ);
+    this.rightArm.rotation.z = lerpSafe(this.rightArm.rotation.z, rArmZ);
 
     if (this.holdingIncense && this.incenseLight) {
       this.incenseLight.intensity = 0.72 + Math.sin(elapsed * 9.5) * 0.22;

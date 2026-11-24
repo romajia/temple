@@ -444,19 +444,23 @@ export class TempleModalsUI {
             <h2 class="font-black text-lg">🙏 正殿中央・誠心拜主神</h2>
             <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
           </div>
-          <div class="p-5 space-y-3.5 text-center max-h-[80vh] overflow-y-auto">
-            <div class="bg-[#FFF3D6] border-2 border-[#E6B44C] rounded-2xl p-3.5">
-              <div class="font-black text-sm text-[#8E1515]">玉勅代天府德慈宮・主祀神聖</div>
-              <div class="text-xs font-bold text-[#5C3A21] mt-1">代天巡狩・五年千歲（盧千歲） ｜ 觀音佛祖 ｜ 天上聖母</div>
+          <div class="p-5 space-y-3.5 text-center max-h-[82vh] overflow-y-auto">
+            <div class="bg-[#FFF3D6] border-2 border-[#E6B44C] rounded-2xl p-3.5 space-y-2">
+              <div class="font-black text-sm text-[#8E1515]">玉勅代天府德慈宮・奉祀神尊</div>
+              <div class="flex flex-wrap justify-center gap-1.5">
+                ${(TEMPLE_CONFIG.enshrinedDeities || []).map((name) => `
+                  <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-[#FFFBF2] text-[#7A1812] border border-[#D4A44A] shadow-xs">${name}</span>
+                `).join('')}
+              </div>
             </div>
             <!-- ★ 專屬神尊小知識卡片 -->
             <div class="bg-[#FBF3E0] border-2 border-[#C98A28] rounded-2xl p-3.5 text-left space-y-2 shadow-inner">
               <div class="flex items-center gap-1.5 text-xs font-black text-[#8E1515]">
                 <span>📜</span>
-                <span>德慈宮神尊小知識｜認識「五年千歲・盧千歲」</span>
+                <span>德慈宮神尊小知識｜認識「代天巡狩（盧千歲）」</span>
               </div>
               <p class="text-xs text-[#3E1C11] font-semibold leading-relaxed">
-                本宮主祀的<strong>「代天巡狩・五年千歲」</strong>神尊，正是<strong>十二瘟王</strong>之中的<strong>【盧千歲】</strong>！在民間信仰與地方稱呼中，以下尊稱皆指同一位護佑眾生的王爺公：
+                殿內<strong>「代天巡狩・五年千歲」</strong>神尊，正是<strong>十二瘟王</strong>之中的<strong>【盧千歲】</strong>！在民間信仰與地方稱呼中，以下尊稱皆指同一位護佑眾生的王爺公：
               </p>
               <div class="flex flex-wrap items-center gap-1 text-[11px] font-black text-[#183C32] bg-[#FFFBF2] border border-[#DFC694] rounded-xl px-2.5 py-2 leading-relaxed">
                 <span class="px-1.5 py-0.5 rounded bg-[#991B1B] text-[#FFFDF6]">盧千歲</span>
@@ -650,7 +654,7 @@ export class TempleModalsUI {
     return `
       <form id="fort-form" class="space-y-4">
         <div class="bg-[#FEF3C7] border-2 border-[#E6B44C] rounded-2xl p-3.5 text-xs font-medium text-[#5C2D0C] leading-relaxed">
-          👴 <strong>阿財伯叮嚀：</strong>求籤前先靜心，把您的姓名和目前最想問的事誠心稟報給五年千歲（盧千歲）、觀音佛祖與天上聖母喔！
+          👴 <strong>阿財伯叮嚀：</strong>求籤前先靜心，把您的姓名和目前最想問的事誠心稟報給觀音佛祖、代天巡狩與殿內十一尊神聖喔！
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -938,13 +942,13 @@ export class TempleModalsUI {
                   <span class="px-2 py-0.5 rounded-full bg-[#FAD364] text-[#5C1111] text-[10px] font-black">神尊小知識</span>
                   <span class="text-2xl">📜</span>
                 </div>
-                <h3 class="font-serif font-black text-xl tracking-wider mt-4 text-[#FFE89E]">認識代天巡狩五年千歲</h3>
+                <h3 class="font-serif font-black text-xl tracking-wider mt-4 text-[#FFE89E]">本宮奉祀神尊＆小知識</h3>
                 <p class="text-xs text-[#FDE8C8] mt-2 leading-relaxed">
-                  你知道嗎？本宮主祀的「代天巡狩五年千歲」正是十二瘟王的<strong>盧千歲</strong>！點開一次看懂七大常見尊稱。
+                  一次認識玉勅代天府德慈宮奉祀神尊，以及十二瘟王「盧千歲（代天巡狩五年千歲）」七大尊稱！
                 </p>
               </div>
               <div class="pt-4 border-t border-white/20 flex items-center justify-between text-xs font-bold text-[#FAD364]">
-                <span>盧千歲 ＝ 五年千歲 ＝ 王爺公</span>
+                <span>奉祀神尊一覽・盧千歲小知識</span>
                 <span class="group-hover:translate-x-1 transition">點開閱讀 ➔</span>
               </div>
             </button>
@@ -1020,17 +1024,33 @@ export class TempleModalsUI {
           </div>
         `;
       } else if (selectedPoster === 'deityLore') {
+        const deityList = TEMPLE_CONFIG.enshrinedDeities || [];
         bodyHtml = `
           <div class="space-y-4 animate-fade-in">
             <div class="flex items-center justify-between pb-2 border-b border-[#E5D3B3]">
-              <h3 class="font-serif font-black text-xl text-[#8E1515]">📜 神尊小知識｜代天巡狩五年千歲（盧千歲）</h3>
+              <h3 class="font-serif font-black text-xl text-[#8E1515]">📜 奉祀神尊一覽 ＆ 神尊小知識</h3>
               <button data-back-posters class="px-3.5 py-1.5 rounded-xl bg-[#F5E6CC] hover:bg-[#EAD2AC] border border-[#C98A28] text-xs font-black text-[#4A2210]">← 返回海報牆</button>
+            </div>
+            <!-- 本宮奉祀神尊總覽 -->
+            <div class="bg-white rounded-3xl p-4 sm:p-5 border-2 border-[#C98A28] space-y-3 shadow-sm">
+              <div class="flex items-center justify-between gap-2">
+                <div class="font-serif font-black text-base text-[#8E1515]">🏛️ 玉勅代天府德慈宮・奉祀神尊</div>
+                <span class="px-2.5 py-0.5 rounded-full bg-[#FEF3C7] border border-[#D97706] text-[11px] font-black text-[#8E1515]">慈聖威德</span>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                ${deityList.map((dName, idx) => `
+                  <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#FFF8EA] border border-[#E5CFA2]">
+                    <span class="w-5 h-5 rounded-full bg-[#8E1515] text-[#FFFDF6] text-[10px] font-black flex items-center justify-center shrink-0">${idx + 1}</span>
+                    <span class="font-black text-xs sm:text-sm text-[#183C32]">${dName}</span>
+                  </div>
+                `).join('')}
+              </div>
             </div>
             <div class="bg-gradient-to-b from-[#FFF8E7] to-[#FEF3D6] border-2 border-[#C98A28] rounded-3xl p-5 space-y-4">
               <div class="flex items-center gap-3">
                 <div class="w-12 h-12 rounded-2xl bg-[#8E1515] border-2 border-[#FAD364] flex items-center justify-center text-2xl shrink-0">🏮</div>
                 <div>
-                  <div class="text-xs font-black text-[#8E1515] tracking-wider">玉勅代天府德慈宮・主祀神尊源流</div>
+                  <div class="text-xs font-black text-[#8E1515] tracking-wider">玉勅代天府德慈宮・神尊小知識</div>
                   <div class="font-serif font-black text-lg text-[#183C32]">十二瘟王・盧千歲（代天巡狩五年千歲）</div>
                 </div>
               </div>

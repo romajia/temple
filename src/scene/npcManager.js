@@ -119,17 +119,23 @@ export class TempleNPCManager {
 
     peerList.forEach((peer) => {
       let entry = this.remotePeers.get(peer.id);
+      const px = Number.isFinite(Number(peer.x)) ? Number(peer.x) : 0;
+      const py = Number.isFinite(Number(peer.y)) ? Number(peer.y) : 0.03;
+      const pz = Number.isFinite(Number(peer.z)) ? Number(peer.z) : 18.0;
+      const pRotY = Number.isFinite(Number(peer.rotY)) ? Number(peer.rotY) : 0;
+
       if (!entry) {
         const avatar = new ChibiAvatar({
           presetId: peer.presetId || 'youngFemale',
           label: peer.name || '線上香客'
         });
-        avatar.root.position.set(peer.x || 0, peer.y || 0.03, peer.z || 18.0);
+        avatar.root.position.set(px, py, pz);
+        avatar.root.rotation.y = pRotY;
         this.scene.add(avatar.root);
         entry = {
           avatar,
-          targetPos: new THREE.Vector3(peer.x || 0, peer.y || 0.03, peer.z || 18.0),
-          targetRotY: peer.rotY || 0,
+          targetPos: new THREE.Vector3(px, py, pz),
+          targetRotY: pRotY,
           name: peer.name || '線上香客',
           presetId: peer.presetId || 'youngFemale',
           lastBubbleAt: 0
@@ -145,9 +151,12 @@ export class TempleNPCManager {
         entry.presetId = peer.presetId;
         entry.avatar.applyPreset(peer.presetId);
       }
-      entry.targetPos.set(peer.x, peer.y, peer.z);
-      entry.targetRotY = peer.rotY || 0;
-      entry.avatar.setState(peer.state || 'idle');
+      entry.targetPos.set(px, py, pz);
+      entry.targetRotY = pRotY;
+      const nextState = peer.state || 'idle';
+      if (nextState !== entry.avatar.state) {
+        entry.avatar.setState(nextState);
+      }
       entry.avatar.setHoldingIncense(Boolean(peer.holdingIncense));
 
       if (peer.bubble && peer.bubbleAt && peer.bubbleAt !== entry.lastBubbleAt) {
@@ -336,8 +345,16 @@ export class TempleNPCManager {
     }
 
     for (const entry of this.remotePeers.values()) {
-      entry.avatar.root.position.lerp(entry.targetPos, Math.min(1, dt * 10));
-      let diff = entry.targetRotY - entry.avatar.root.rotation.y;
+      const pos = entry.avatar.root.position;
+      if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
+        pos.copy(entry.targetPos);
+      } else {
+        pos.lerp(entry.targetPos, Math.min(1, dt * 10));
+      }
+      if (!Number.isFinite(entry.avatar.root.rotation.y)) {
+        entry.avatar.root.rotation.y = entry.targetRotY || 0;
+      }
+      let diff = (entry.targetRotY || 0) - entry.avatar.root.rotation.y;
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       entry.avatar.root.rotation.y += diff * Math.min(1, dt * 10);

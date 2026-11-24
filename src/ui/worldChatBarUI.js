@@ -51,6 +51,7 @@ export class WorldChatBarUI {
   }
 
   mount() {
+    if (this.mounted) return;
     this.mounted = true;
     this.lastSeenMsgCount = storageSync.getChatMessages().length;
     this.root.innerHTML = `
@@ -129,7 +130,12 @@ export class WorldChatBarUI {
     standBtnBar?.addEventListener('click', handleStandUp);
 
     this.root.querySelectorAll('[data-wc-quick]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.disabled) return;
+        btn.disabled = true;
+        setTimeout(() => { btn.disabled = false; }, 1200);
         const text = btn.getAttribute('data-wc-quick');
         this._submitText(text);
       });

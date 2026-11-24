@@ -199,7 +199,7 @@ class TempleStorageSync {
       bulletin: this._load(STORAGE_KEYS.bulletin, INITIAL_BULLETIN),
       taisui: this._load(STORAGE_KEYS.taisui, INITIAL_TAISUI_LIST),
       offerings: this._loadOfferings(),
-      chat: this._load(STORAGE_KEYS.chat, INITIAL_CHAT_MESSAGES),
+      chat: this._dedupeChatList(this._load(STORAGE_KEYS.chat, INITIAL_CHAT_MESSAGES)),
       player: this._loadPlayer()
     };
 
@@ -275,14 +275,14 @@ class TempleStorageSync {
       this._pruneOfflinePeers();
     }, 1000);
 
-    // 定期同步雲端共享資料（公佈欄／太歲牆／供桌）與多人聊天
+    // 定期同步雲端共享資料（公佈欄／太歲牆／供桌）與多人聊天（縮短至 2.5 秒讓信徒即時看到最新安太歲牆！）
     setInterval(() => {
       if (this.cloudDbUrl) {
         this._pullCloudShared();
       } else if (this.serverMpAvailable) {
         this._pullServerShared();
       }
-    }, 4500);
+    }, 2500);
   }
 
   _resolveInitialCloudDbUrl() {
@@ -358,18 +358,37 @@ class TempleStorageSync {
     }
   }
 
+  _normalizeArrayFromCloud(raw) {
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (raw && typeof raw === 'object') return Object.values(raw).filter(Boolean);
+    return null;
+  }
+
+  async _getCloud(path) {
+    if (!this.cloudDbUrl) return { ok: false, data: null };
+    try {
+      const res = await fetch(`${this.cloudDbUrl}/${path}.json`, { cache: 'no-store' });
+      if (!res.ok) return { ok: false, data: null };
+      const data = await res.json();
+      this.cloudConnected = true;
+      return { ok: true, data };
+    } catch {
+      return { ok: false, data: null };
+    }
+  }
+
   async _pushCloudSharedAllIfEmpty() {
     if (!this.cloudDbUrl) return;
     try {
-      const r = await fetch(`${this.cloudDbUrl}/shared.json`);
+      const r = await fetch(`${this.cloudDbUrl}/shared.json`, { cache: 'no-store' });
       const existing = r.ok ? await r.json() : null;
       if (!existing || !existing.bulletin) {
         await this._putCloud('shared/bulletin', this.state.bulletin);
       }
-      if (!existing || !Array.isArray(existing.taisui)) {
+      if (!existing || !this._normalizeArrayFromCloud(existing.taisui)) {
         await this._putCloud('shared/taisui', this.state.taisui);
       }
-      if (!existing || !Array.isArray(existing.offerings)) {
+      if (!existing || !this._normalizeArrayFromCloud(existing.offerings)) {
         await this._putCloud('shared/offerings', this.state.offerings);
       }
     } catch {}
@@ -395,36 +414,49 @@ class TempleStorageSync {
     return false;
   }
 
-  async _pullCloudShared() {
-    if (!this.cloudDbUrl || this._cloudSharedPulling) return;
+  refreshCloudShared(forceEmit = false) {
+    if (this.cloudDbUrl) return this._pullCloudShared(forceEmit);
+    if (this.serverMpAvailable) return this._pullServerShared(forceEmit);
+    return Promise.resolve();
+  }
+
+  async _pullCloudShared(forceEmit = false) {
+    if (!this.cloudDbUrl) return;
+    if (this._cloudSharedPulling && !forceEmit) return;
     this._cloudSharedPulling = true;
     try {
-      const res = await fetch(`${this.cloudDbUrl}/shared.json`);
+      const res = await fetch(`${this.cloudDbUrl}/shared.json`, { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       this.cloudConnected = true;
       if (!data) return;
+
       if (data.bulletin && typeof data.bulletin === 'object') {
         const nextJson = JSON.stringify(data.bulletin);
-        if (nextJson !== JSON.stringify(this.state.bulletin)) {
+        if (forceEmit || nextJson !== JSON.stringify(this.state.bulletin)) {
           this.state.bulletin = data.bulletin;
           this._save(STORAGE_KEYS.bulletin, this.state.bulletin);
           this._emit('bulletin');
         }
       }
-      if (Array.isArray(data.taisui)) {
-        const nextJson = JSON.stringify(data.taisui);
-        if (nextJson !== JSON.stringify(this.state.taisui)) {
-          this.state.taisui = data.taisui;
+
+      const cloudTaiSui = this._normalizeArrayFromCloud(data.taisui);
+      if (cloudTaiSui || data.taisuiEmpty === true) {
+        const nextList = cloudTaiSui || [];
+        const nextJson = JSON.stringify(nextList);
+        if (forceEmit || nextJson !== JSON.stringify(this.state.taisui)) {
+          this.state.taisui = nextList;
           this._save(STORAGE_KEYS.taisui, this.state.taisui);
           this._emit('taisui');
         }
       }
-      if (Array.isArray(data.offerings)) {
+
+      const cloudOfferings = this._normalizeArrayFromCloud(data.offerings);
+      if (cloudOfferings || data.offeringsEmpty === true) {
         const now = Date.now();
         const ttl = TEMPLE_CONFIG.offerings.ttlMs;
-        const valid = data.offerings.filter(item => item && now - item.createdAt < ttl);
-        if (JSON.stringify(valid) !== JSON.stringify(this.state.offerings)) {
+        const valid = (cloudOfferings || []).filter(item => item && now - item.createdAt < ttl);
+        if (forceEmit || JSON.stringify(valid) !== JSON.stringify(this.state.offerings)) {
           this.state.offerings = valid;
           this._save(STORAGE_KEYS.offerings, this.state.offerings);
           this._emit('offerings');
@@ -441,9 +473,17 @@ class TempleStorageSync {
     this._cloudMpPulling = true;
     try {
       const [pRes, cRes] = await Promise.all([
-        fetch(`${this.cloudDbUrl}/presence.json`),
-        fetch(`${this.cloudDbUrl}/chat.json`)
+        fetch(`${this.cloudDbUrl}/presence.json`, { cache: 'no-store' }),
+        fetch(`${this.cloudDbUrl}/chat.json`, { cache: 'no-store' })
       ]);
+      // ★ 先合併正式聊天頻道（chat.json），再更新角色位置與頭頂氣泡（presence.json）
+      if (cRes.ok) {
+        const cMap = await cRes.json();
+        if (cMap && typeof cMap === 'object') {
+          const list = Array.isArray(cMap) ? cMap.filter(Boolean) : Object.values(cMap).filter(Boolean);
+          this._mergeIncomingChats(list);
+        }
+      }
       if (pRes.ok) {
         const pMap = await pRes.json();
         this.cloudConnected = true;
@@ -462,37 +502,31 @@ class TempleStorageSync {
         }
         this._emit('presence');
       }
-      if (cRes.ok) {
-        const cMap = await cRes.json();
-        if (cMap && typeof cMap === 'object') {
-          const list = Array.isArray(cMap) ? cMap.filter(Boolean) : Object.values(cMap).filter(Boolean);
-          this._mergeIncomingChats(list);
-        }
-      }
     } catch {
     } finally {
       this._cloudMpPulling = false;
     }
   }
 
-  async _pullServerShared() {
-    if (!this.serverMpAvailable || this._serverSharedPulling) return;
+  async _pullServerShared(forceEmit = false) {
+    if (!this.serverMpAvailable) return;
+    if (this._serverSharedPulling && !forceEmit) return;
     this._serverSharedPulling = true;
     try {
-      const res = await fetch('/api/mp/shared');
+      const res = await fetch('/api/mp/shared', { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
-      if (data?.bulletin && JSON.stringify(data.bulletin) !== JSON.stringify(this.state.bulletin)) {
+      if (data?.bulletin && (forceEmit || JSON.stringify(data.bulletin) !== JSON.stringify(this.state.bulletin))) {
         this.state.bulletin = data.bulletin;
         this._save(STORAGE_KEYS.bulletin, this.state.bulletin);
         this._emit('bulletin');
       }
-      if (Array.isArray(data?.taisui) && JSON.stringify(data.taisui) !== JSON.stringify(this.state.taisui)) {
+      if (Array.isArray(data?.taisui) && (forceEmit || JSON.stringify(data.taisui) !== JSON.stringify(this.state.taisui))) {
         this.state.taisui = data.taisui;
         this._save(STORAGE_KEYS.taisui, this.state.taisui);
         this._emit('taisui');
       }
-      if (Array.isArray(data?.offerings) && JSON.stringify(data.offerings) !== JSON.stringify(this.state.offerings)) {
+      if (Array.isArray(data?.offerings) && (forceEmit || JSON.stringify(data.offerings) !== JSON.stringify(this.state.offerings))) {
         this.state.offerings = data.offerings;
         this._save(STORAGE_KEYS.offerings, this.state.offerings);
         this._emit('offerings');
@@ -538,28 +572,8 @@ class TempleStorageSync {
     const safeBubble = peer.bubble ? sanitizeChatText(peer.bubble).clean : '';
     const enriched = { ...peer, bubble: safeBubble, updatedAt: Date.now() };
     this.remotePeers.set(peer.id, enriched);
-
-    // ★ 確保多人連線玩家的頭頂發言也會同步記入統一的聊天「紀錄」！
-    if (safeBubble && peer.bubbleAt) {
-      const lastLogged = this._peerLoggedBubbles.get(peer.id) || 0;
-      if (peer.bubbleAt > lastLogged) {
-        this._peerLoggedBubbles.set(peer.id, peer.bubbleAt);
-        const alreadyInChat = this.state.chat.some(
-          (m) => m.senderId === peer.id && m.text === safeBubble && Math.abs((m.timestamp || 0) - peer.bubbleAt) < 5000
-        );
-        if (!alreadyInChat) {
-          this._mergeIncomingChats([{
-            id: `peer-${peer.id}-${peer.bubbleAt}`,
-            senderId: peer.id,
-            sender: peer.name || '線上香客',
-            role: 'peer',
-            avatar: '👤',
-            text: safeBubble,
-            timestamp: peer.bubbleAt
-          }]);
-        }
-      }
-    }
+    // ★ 修正重複訊息 Bug：多人聊天文字已由正式 chat.json / BroadcastChannel 通道同步，
+    //   此處不再重複把 presence 頭頂氣泡另建 peer-* 假訊息塞進聊天紀錄，徹底消除送一次變兩次的重複問題！
   }
 
   _load(key, fallback) {
@@ -729,20 +743,55 @@ class TempleStorageSync {
     }
   }
 
+  _dedupeChatList(list) {
+    if (!Array.isArray(list)) return [];
+    const sorted = [...list]
+      .filter((m) => m && m.id && m.text && !String(m.id).startsWith('peer-'))
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    const out = [];
+    const seenIds = new Set();
+    for (const m of sorted) {
+      if (seenIds.has(m.id)) continue;
+      const isNearDup = out.some(
+        (ex) =>
+          ex.text === m.text &&
+          (ex.senderId && m.senderId ? ex.senderId === m.senderId : ex.sender === m.sender) &&
+          Math.abs((ex.timestamp || 0) - (m.timestamp || 0)) < 8000
+      );
+      if (isNearDup) continue;
+      seenIds.add(m.id);
+      out.push(m);
+    }
+    return out.slice(-80);
+  }
+
   _mergeIncomingChats(incoming) {
     const existingIds = new Set(this.state.chat.map(c => c.id));
     let added = false;
     for (const rawMsg of incoming) {
       if (!rawMsg || !rawMsg.id || existingIds.has(rawMsg.id)) continue;
+      if (String(rawMsg.id).startsWith('peer-')) continue;
       // 外部傳入訊息再做一層清淨防護
       const { clean } = sanitizeChatText(rawMsg.text || '');
       if (!clean) continue;
+      const ts = Number(rawMsg.timestamp) || Date.now();
+      // ★ 雙重防重機制：同一發言者於 8 秒內送出相同文字絕不重複寫入！
+      const isNearDup = this.state.chat.some(
+        (ex) =>
+          ex.text === clean &&
+          (ex.senderId && rawMsg.senderId ? ex.senderId === rawMsg.senderId : ex.sender === rawMsg.sender) &&
+          Math.abs((ex.timestamp || 0) - ts) < 8000
+      );
+      if (isNearDup) {
+        existingIds.add(rawMsg.id);
+        continue;
+      }
       const role = rawMsg.senderId === this.clientId ? 'player' : (rawMsg.role === 'player' ? 'peer' : (rawMsg.role || 'peer'));
       this.state.chat.push({
         ...rawMsg,
         role,
         text: clean,
-        timestamp: Number(rawMsg.timestamp) || Date.now()
+        timestamp: ts
       });
       existingIds.add(rawMsg.id);
       added = true;
@@ -909,8 +958,39 @@ class TempleStorageSync {
     this._emit('bulletin');
   }
 
-  // ---- 安太歲紅紙牆 ----
+  // ---- 安太歲紅紙牆（雲端先讀再合併寫入，避免多人同時點燈覆蓋彼此！） ----
   getTaiSuiList() { return this.state.taisui; }
+
+  async _mergeAndPushTaiSui({ prepend = [], removeId = null, replaceAll = null } = {}) {
+    if (this.cloudDbUrl) {
+      let nextList;
+      if (Array.isArray(replaceAll)) {
+        nextList = replaceAll;
+      } else {
+        const { ok, data } = await this._getCloud('shared/taisui');
+        const base = (ok && this._normalizeArrayFromCloud(data)) ? this._normalizeArrayFromCloud(data) : this.state.taisui;
+        let merged = [...base];
+        if (removeId) {
+          merged = merged.filter(item => item && item.id !== removeId);
+        }
+        if (prepend.length > 0) {
+          const existingIds = new Set(merged.map(item => item?.id).filter(Boolean));
+          const fresh = prepend.filter(item => item && !existingIds.has(item.id));
+          merged = [...fresh, ...merged];
+        }
+        nextList = merged;
+      }
+
+      this.state.taisui = nextList;
+      this._save(STORAGE_KEYS.taisui, nextList);
+      this._broadcast('taisui', nextList);
+      this._emit('taisui');
+      await this._putCloud('shared/taisui', nextList);
+      await this._putCloud('shared/taisuiEmpty', nextList.length === 0);
+      return;
+    }
+    this._pushSharedToBackend('taisui', this.state.taisui);
+  }
 
   addTaiSuiEntry({ name, zodiac = '平安', wish = '闔家平安、消災解厄', type = 'online' }) {
     const cleanName = name.trim();
@@ -926,17 +1006,18 @@ class TempleStorageSync {
     this.state.taisui = [entry, ...this.state.taisui];
     this._save(STORAGE_KEYS.taisui, this.state.taisui);
     this._broadcast('taisui', this.state.taisui);
-    this._pushSharedToBackend('taisui', this.state.taisui);
     this._emit('taisui');
+    this._mergeAndPushTaiSui({ prepend: [entry] });
     return entry;
   }
 
   replaceTaiSuiList(list) {
-    this.state.taisui = Array.isArray(list) ? list : [];
+    const next = Array.isArray(list) ? list : [];
+    this.state.taisui = next;
     this._save(STORAGE_KEYS.taisui, this.state.taisui);
     this._broadcast('taisui', this.state.taisui);
-    this._pushSharedToBackend('taisui', this.state.taisui);
     this._emit('taisui');
+    this._mergeAndPushTaiSui({ replaceAll: next });
   }
 
   batchImportTaiSui(entries) {
@@ -953,8 +1034,8 @@ class TempleStorageSync {
     this.state.taisui = [...newItems, ...this.state.taisui];
     this._save(STORAGE_KEYS.taisui, this.state.taisui);
     this._broadcast('taisui', this.state.taisui);
-    this._pushSharedToBackend('taisui', this.state.taisui);
     this._emit('taisui');
+    this._mergeAndPushTaiSui({ prepend: newItems });
     return newItems.length;
   }
 
@@ -962,8 +1043,8 @@ class TempleStorageSync {
     this.state.taisui = this.state.taisui.filter(item => item.id !== id);
     this._save(STORAGE_KEYS.taisui, this.state.taisui);
     this._broadcast('taisui', this.state.taisui);
-    this._pushSharedToBackend('taisui', this.state.taisui);
     this._emit('taisui');
+    this._mergeAndPushTaiSui({ removeId: id });
   }
 
   // ---- 供桌供品（上限 12 份，滿 10 分鐘自動清理） ----

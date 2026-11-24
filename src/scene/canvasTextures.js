@@ -598,9 +598,9 @@ export function createCoupletTexture(text) {
 }
 
 /**
- * 4. 橫批匾額（如：神威顯赫）
+ * 4. 橫批匾額（如：慈聖威德）
  */
-export function createHorizontalSignTexture(text = '神威顯赫') {
+export function createHorizontalSignTexture(text = '慈聖威德') {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 160;
@@ -666,9 +666,10 @@ export function drawTaiSuiWallCanvas(canvas, list = [], highlightName = '') {
     const w = cellW - 10;
     const h = cellH - 12;
     const item = list[i];
-    const isMatch = Boolean(query && item && item.name.includes(query));
+    const itemName = String(item?.name || '').trim();
+    const isMatch = Boolean(query && itemName && itemName.includes(query));
 
-    ctx.fillStyle = item
+    ctx.fillStyle = itemName
       ? (isMatch ? '#FFE66D' : (item.type === 'online' ? '#DC2626' : '#C21D1D'))
       : 'rgba(100, 12, 12, 0.55)';
     ctx.fillRect(x, y, w, h);
@@ -677,7 +678,7 @@ export function drawTaiSuiWallCanvas(canvas, list = [], highlightName = '') {
     ctx.lineWidth = isMatch ? 5 : 2;
     ctx.strokeRect(x, y, w, h);
 
-    if (item) {
+    if (itemName) {
       const glow = ctx.createRadialGradient(x + w / 2, y + 18, 2, x + w / 2, y + 18, 16);
       glow.addColorStop(0, '#FFFFFF');
       glow.addColorStop(0.5, '#FFE066');
@@ -688,7 +689,7 @@ export function drawTaiSuiWallCanvas(canvas, list = [], highlightName = '') {
       ctx.fill();
 
       // 支援最多 20 字元姓名或公司行號：放大清晰粗體字級，超過 5 字自動分雙直欄由右至左排入紅紙！
-      const chars = [...item.name.slice(0, 20)];
+      const chars = [...itemName.slice(0, 20)];
       ctx.fillStyle = isMatch ? '#5E0A0A' : '#FFFDF2';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

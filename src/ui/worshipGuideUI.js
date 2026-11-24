@@ -91,7 +91,7 @@ export class WorshipGuideUI {
         ${allDone ? `
           <div class="bg-gradient-to-r from-[#FEF3C7] to-[#FDE68A] border-2 border-[#D97706] rounded-xl p-2.5 text-center">
             <div class="font-black text-sm text-[#8E1515]">✨ 參拜禮儀圓滿完成！✨</div>
-            <div class="text-xs font-bold text-[#5C3A21] mt-0.5">五年千歲・觀音佛祖・天上聖母庇佑平安</div>
+            <div class="text-xs font-bold text-[#5C3A21] mt-0.5">觀音佛祖・代天巡狩與眾神尊庇佑平安</div>
             <button data-action="reset-round" class="mt-2 text-xs font-black px-3.5 py-1.5 rounded-full bg-[#8E1515] text-[#FFFDF6] hover:bg-[#701010]">
               開啟新一輪參拜
             </button>

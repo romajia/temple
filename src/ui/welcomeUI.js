@@ -195,7 +195,7 @@ export class WelcomeUI {
           <!-- 頂部深松墨綠牌匾條 -->
           <div class="bg-[#183C32] px-4 sm:px-5 py-3 flex items-center justify-between gap-2 text-[#FBF7E9] border-b-2 border-[#E5B968]">
             <div class="min-w-0">
-              <div class="text-[11px] font-bold tracking-[0.14em] text-[#F5D68E]">挑高大殿 36 拜墊・多人即時連線漫步</div>
+              <div class="text-[11px] font-bold tracking-[0.14em] text-[#F5D68E]">觀音佛祖・代天巡狩・36 拜墊多人連線</div>
               <h1 class="font-serif font-black text-lg sm:text-xl tracking-[0.10em] mt-0.5 truncate">玉勅代天府德慈宮</h1>
             </div>
             <span class="shrink-0 px-2.5 py-1 rounded-full bg-[#245446] border border-[#E5B968] text-[11px] font-black text-[#FFF1B8]">

@@ -320,7 +320,7 @@ async function initApp() {
     },
     onWorshipMainDeity: () => {
       sceneCtrl.setPlayerHoldingIncense(true);
-      showToast('🙏 立於中央大道虔誠三拜代天巡狩五年千歲（盧千歲）、觀音佛祖、天上聖母並上前插香…', 3400);
+      showToast('🙏 立於中央大道虔誠三拜觀音佛祖、代天巡狩及殿內十一尊神聖並上前插香…', 3400);
       sceneCtrl.playMainDeityRitual(() => {
         playerStatus.hasIncense = false;
         storageSync.updatePlayer({ hasIncense: false });
@@ -386,6 +386,14 @@ async function initApp() {
     sceneCtrl.syncRemotePeers(peers);
     updateOnlineCount();
   });
+
+  // ★ 關鍵修正：3D 場景非同步初始化期間若雲端共享資料已先拉取完成，訂閱前漏接事件會導致 3D 太歲牆／公佈欄停留在舊預設名單！
+  //   註冊訂閱後立即把最新資料同步到 3D 牆面，並強制向雲端再拉一次最新清單確保信徒進場就看到最新內容！
+  sceneCtrl.syncOfferings(storageSync.getOfferings());
+  sceneCtrl.updateTaiSuiWall(storageSync.getTaiSuiList());
+  sceneCtrl.updateBulletinBoard(storageSync.getBulletin());
+  storageSync.refreshCloudShared(true);
+
   updateOnlineCount();
   updatePlayerHud();
 
