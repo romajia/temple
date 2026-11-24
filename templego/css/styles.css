@@ -1,0 +1,2324 @@
+/* ==========================================================================
+   《御朱燈影：跟著宮廟去旅行》設計系統 (Vanilla CSS)
+   美學主軸：日式受天宮御朱印留白紙感 × 台灣廟宇暖光燈籠與蒼勁毛筆字
+   ========================================================================== */
+
+:root {
+  /* PRD 指定核心色票 */
+  --washi: #F7F3E8;
+  --washi-card: #FCF9F1;
+  --washi-deep: #ECE4D2;
+  --xuan-night: #1C1917;
+  --vermilion: #C83C2B;
+  --vermilion-dark: #9D2A1C;
+  --lantern-amber: #F59E0B;
+  --gold-foil: #D4AF37;
+  --gold-deep: #9E7B1C;
+  --ink: #292524;
+  --ink-muted: #57534E;
+  --ink-soft: #78716C;
+  --jade: #2E6F5E;
+  --border-washi: rgba(168, 144, 106, 0.34);
+  --shadow-card: 0 10px 28px rgba(41, 37, 36, 0.08), 0 2px 6px rgba(41, 37, 36, 0.05);
+
+  /* 字體與無障礙基準尺寸 (>= 16px) */
+  --font-brush: 'Yuji Syuku', 'Noto Serif TC', 'DFKai-SB', serif;
+  --font-serif: 'Noto Serif TC', 'PMingLiU', serif;
+  --font-sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --base-size: 16.5px;
+  --radius-card: 18px;
+  --radius-btn: 14px;
+}
+
+/* 大字體無障礙模式（專為中老年信眾與戶外陽光下設計） */
+html.font-large {
+  --base-size: 19.5px;
+}
+
+/* 慶典夜間模式（墨黑宣紙底 × 暖金紙卡，無紫光刺眼） */
+html.theme-night {
+  --washi: #1C1917;
+  --washi-card: #26221F;
+  --washi-deep: #302B27;
+  --ink: #F5EFE2;
+  --ink-muted: #D4C8B4;
+  --ink-soft: #A89E8E;
+  --border-washi: rgba(212, 175, 55, 0.34);
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--base-size);
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background-color: var(--washi);
+  /* 細緻和紙纖維雜訊紋理 */
+  background-image:
+    radial-gradient(rgba(212, 175, 55, 0.08) 1px, transparent 0),
+    radial-gradient(rgba(160, 130, 90, 0.06) 1px, transparent 0),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  background-size: 28px 28px, 42px 42px, 180px 180px;
+  line-height: 1.65;
+  padding-bottom: 92px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+button,
+input,
+select,
+a {
+  font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--lantern-amber);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   頂部台灣燈籠簷廊 (Lantern Canopy Header)
+   ========================================================================== */
+.temple-canopy {
+  background: linear-gradient(180deg, #120F0E 0%, #1C1917 72%, #29221E 100%);
+  color: #FAF6EC;
+  border-bottom: 3px solid var(--gold-foil);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(28, 25, 23, 0.32);
+}
+
+.temple-canopy::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 80% 70% at 50% 65%, rgba(245, 158, 11, 0.16), transparent 72%);
+}
+
+.canopy-utility-bar {
+  position: relative;
+  z-index: 3;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+}
+
+.canopy-brand-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-mini-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold-foil);
+  object-fit: cover;
+}
+
+.brand-mini-name {
+  font-family: var(--font-brush);
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  color: #FDE68A;
+}
+
+.canopy-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lang-switch {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.util-chip {
+  border: none;
+  background: transparent;
+  color: #E5DEC9;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.util-chip.is-active {
+  background: var(--vermilion);
+  color: #FFFDF8;
+}
+
+.util-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  color: #FAF3E3;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+
+.util-btn:hover {
+  background: rgba(212, 175, 55, 0.24);
+}
+
+.util-btn.is-active {
+  background: var(--gold-foil);
+  color: #1C1917;
+}
+
+.util-btn.is-muted {
+  opacity: 0.6;
+}
+
+.util-btn-label {
+  display: none;
+}
+
+@media (min-width: 560px) {
+  .util-btn-label {
+    display: inline;
+  }
+}
+
+/* 燈籠屋簷與微光呼吸動畫 */
+.lantern-eaves {
+  position: relative;
+  z-index: 2;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 12px 18px;
+}
+
+.eaves-beam {
+  height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.7), transparent);
+  margin-bottom: 0;
+}
+
+.lantern-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.lantern-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: top center;
+  animation: lanternSway 5.6s ease-in-out infinite;
+}
+
+.lantern-delay-1 { animation-delay: -1.3s; }
+.lantern-delay-2 { animation-delay: -2.8s; }
+.lantern-delay-3 { animation-delay: -4.1s; }
+
+/* 極窄螢幕隱藏第 4 盞，保持大器留白 */
+@media (max-width: 390px) {
+  .lantern-delay-3 {
+    display: none;
+  }
+}
+
+.lantern-cord {
+  width: 2px;
+  height: 16px;
+  background: var(--gold-foil);
+}
+
+.lantern-delay-1 .lantern-cord,
+.lantern-delay-2 .lantern-cord {
+  height: 24px;
+}
+
+.lantern-cap {
+  width: 30px;
+  height: 7px;
+  background: #292524;
+  border: 1.5px solid var(--gold-foil);
+  border-radius: 3px;
+}
+
+.lantern-body {
+  position: relative;
+  width: 62px;
+  height: 86px;
+  border-radius: 44% / 48%;
+  background: radial-gradient(circle at 50% 46%, #FFF3BA 0%, #F59E0B 45%, #C83C2B 85%, #841B11 100%);
+  border: 1.5px solid rgba(255, 224, 150, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 22px rgba(245, 158, 11, 0.58),
+    0 0 46px rgba(245, 158, 11, 0.28),
+    inset 0 0 14px rgba(255, 248, 210, 0.5);
+  animation: lanternBreathe 3.8s ease-in-out infinite;
+}
+
+.lantern-delay-1 .lantern-body { animation-delay: -0.9s; }
+.lantern-delay-2 .lantern-body { animation-delay: -1.8s; }
+.lantern-delay-3 .lantern-body { animation-delay: -2.7s; }
+
+.lantern-ribs {
+  position: absolute;
+  inset: 1px 14px;
+  border-left: 1px solid rgba(255, 240, 195, 0.35);
+  border-right: 1px solid rgba(255, 240, 195, 0.35);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.lantern-text {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.06;
+  font-family: var(--font-brush);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #241914;
+  text-shadow: 0 0 6px rgba(255, 242, 180, 0.85);
+}
+
+.lantern-tassel {
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(180deg, var(--gold-foil) 0%, var(--vermilion) 35%, #7F1D1D 100%);
+  border-radius: 0 0 3px 3px;
+}
+
+@keyframes lanternSway {
+  0%, 100% { transform: rotate(-2.4deg); }
+  50% { transform: rotate(2.4deg); }
+}
+
+@keyframes lanternBreathe {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(245, 158, 11, 0.52), 0 0 38px rgba(245, 158, 11, 0.24), inset 0 0 12px rgba(255, 248, 210, 0.45);
+    filter: brightness(0.98);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(245, 158, 11, 0.82), 0 0 60px rgba(245, 158, 11, 0.42), inset 0 0 18px rgba(255, 250, 224, 0.72);
+    filter: brightness(1.07);
+  }
+}
+
+/* ==========================================================================
+   主內容容器與和紙卡片基礎
+   ========================================================================== */
+.app-main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.view-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeSlideUp 0.28s ease-out;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.washi-card {
+  background: var(--washi-card);
+  border: 1.5px solid var(--border-washi);
+  border-radius: var(--radius-card);
+  padding: 22px 20px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+
+.washi-card::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: calc(var(--radius-card) - 4px);
+  pointer-events: none;
+}
+
+.section-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.section-heading {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.32rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+
+.heading-seal-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--vermilion);
+  color: #FFFBF0;
+  font-family: var(--font-brush);
+  font-size: 1.08rem;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px rgba(255, 240, 210, 0.45);
+  flex-shrink: 0;
+}
+
+.section-subcopy {
+  margin: 6px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.94rem;
+}
+
+/* ==========================================================================
+   按鈕系統（高對比、大觸控區 >= 48px）
+   ========================================================================== */
+.btn-vermilion,
+.btn-vermilion-sm,
+.btn-ink-outline,
+.btn-ink-outline-sm,
+.btn-gold-sm,
+.btn-outline-sm,
+.btn-line-oa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-btn);
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.14s ease, box-shadow 0.2s ease, background 0.2s ease;
+  letter-spacing: 0.03em;
+}
+
+.btn-vermilion {
+  min-height: 52px;
+  padding: 12px 22px;
+  font-size: 1.08rem;
+  background: linear-gradient(135deg, #D14231 0%, #B72E1E 100%);
+  color: #FFFDF8;
+  border: 2px solid #962215;
+  box-shadow: 0 6px 16px rgba(200, 60, 43, 0.28);
+}
+
+.btn-vermilion:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(200, 60, 43, 0.36);
+}
+
+.btn-vermilion:disabled,
+.btn-ink-outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-vermilion-sm {
+  min-height: 44px;
+  padding: 9px 16px;
+  font-size: 0.95rem;
+  background: var(--vermilion);
+  color: #FFFDF8;
+  border: 1.5px solid var(--vermilion-dark);
+}
+
+.btn-vermilion-sm:hover {
+  background: var(--vermilion-dark);
+}
+
+.btn-ink-outline {
+  min-height: 52px;
+  padding: 12px 20px;
+  font-size: 1.05rem;
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+}
+
+.btn-ink-outline:hover {
+  background: rgba(41, 37, 36, 0.08);
+}
+
+.btn-ink-outline-sm {
+  min-height: 44px;
+  padding: 9px 16px;
+  font-size: 0.95rem;
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink-muted);
+}
+
+.btn-ink-outline-sm:hover {
+  background: rgba(41, 37, 36, 0.08);
+}
+
+.btn-gold-sm {
+  min-height: 44px;
+  padding: 9px 14px;
+  font-size: 0.92rem;
+  background: #FEF3C7;
+  color: #78350F;
+  border: 1.5px solid var(--gold-foil);
+}
+
+.btn-outline-sm {
+  min-height: 38px;
+  padding: 6px 13px;
+  font-size: 0.88rem;
+  background: var(--washi);
+  color: var(--ink);
+  border: 1.5px solid var(--border-washi);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-outline-sm:hover {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
+
+.btn-line-oa {
+  min-height: 52px;
+  padding: 12px 20px;
+  font-size: 1.06rem;
+  background: #06C755;
+  color: #FFFFFF;
+  border: 2px solid #05A647;
+  box-shadow: 0 6px 16px rgba(6, 199, 85, 0.25);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* ==========================================================================
+   模組 A：首屏朱印視覺 ＋ 儀表板 ＋ 培育器 ＋ 雙向導流
+   ========================================================================== */
+.hero-goshuin-card {
+  padding: 28px 24px;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(245, 158, 11, 0.12), transparent 44%),
+    var(--washi-card);
+}
+
+.hero-seal-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+}
+
+@media (min-width: 680px) {
+  .hero-seal-layout {
+    flex-direction: row;
+    text-align: left;
+    gap: 32px;
+  }
+}
+
+.hero-seal-emblem {
+  width: 168px;
+  height: 168px;
+  flex-shrink: 0;
+}
+
+.hero-main-seal-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 18px rgba(200, 60, 43, 0.16));
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--vermilion);
+  border-bottom: 1.5px solid var(--gold-foil);
+  padding-bottom: 3px;
+  margin-bottom: 10px;
+}
+
+.hero-main-title {
+  margin: 0 0 10px;
+  font-family: var(--font-brush);
+  font-size: clamp(1.85rem, 5vw, 2.55rem);
+  line-height: 1.24;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.hero-sub-colon {
+  color: var(--vermilion);
+}
+
+.sm-break {
+  display: inline;
+}
+
+@media (min-width: 680px) {
+  .sm-break {
+    display: none;
+  }
+}
+
+.hero-desc {
+  margin: 0 0 18px;
+  color: var(--ink-muted);
+  font-size: 1rem;
+  max-width: 52ch;
+}
+
+.hero-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+@media (min-width: 680px) {
+  .hero-quick-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* 儀表板數據列 */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 540px) {
+  .stats-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .stats-strip .stat-tile:last-child {
+    grid-column: span 2;
+  }
+}
+
+.stat-tile {
+  background: var(--washi-card);
+  border: 1.5px solid var(--border-washi);
+  border-radius: 16px;
+  padding: 16px 14px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.stat-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+}
+
+.stat-num {
+  font-size: 1.85rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.stat-vermilion { color: var(--vermilion); }
+.stat-gold { color: var(--gold-deep); }
+html.theme-night .stat-gold { color: var(--lantern-amber); }
+
+.stat-unit {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* 香火苗培育卡片 */
+.slot-counter {
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--washi-deep);
+  color: var(--ink);
+}
+
+.incubator-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--washi);
+  border: 1.5px solid var(--border-washi);
+}
+
+.incubator-body.is-ready {
+  border-color: var(--lantern-amber);
+  box-shadow: 0 0 26px rgba(245, 158, 11, 0.28);
+}
+
+@media (min-width: 600px) {
+  .incubator-body {
+    flex-direction: row;
+    align-items: center;
+    padding: 20px 22px;
+  }
+}
+
+.incubator-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.incense-seed-svg {
+  width: 108px;
+  height: 108px;
+  animation: gentleFloat 3.4s ease-in-out infinite;
+}
+
+.incense-seed-svg.is-ready {
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.72));
+}
+
+@keyframes gentleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.seed-type-pill,
+.seed-mini-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--seed-color);
+  background: var(--seed-bg);
+  border: 1px solid var(--seed-color);
+  white-space: nowrap;
+}
+
+.incubator-info {
+  flex: 1;
+  width: 100%;
+}
+
+.incubator-origin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.origin-tag {
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--washi);
+}
+
+.origin-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.origin-deity {
+  margin: 4px 0 14px;
+  font-size: 0.92rem;
+  color: var(--ink-muted);
+}
+
+.progress-block {
+  margin-bottom: 16px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 0.96rem;
+}
+
+.progress-pct {
+  font-weight: 900;
+  color: var(--vermilion);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-track {
+  width: 100%;
+  height: 15px;
+  border-radius: 999px;
+  background: var(--washi-deep);
+  border: 1.5px solid rgba(168, 144, 106, 0.45);
+  overflow: hidden;
+  padding: 2px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #D97706 0%, #F59E0B 55%, #C83C2B 100%);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.65);
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.progress-fill.is-full {
+  background: linear-gradient(90deg, #D4AF37, #F59E0B, #C83C2B, #F59E0B);
+  background-size: 200% 100%;
+  animation: shimmerFlow 2s linear infinite;
+}
+
+@keyframes shimmerFlow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.btn-hatch-pulse {
+  width: 100%;
+  animation: hatchPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes hatchPulse {
+  0%, 100% { box-shadow: 0 6px 18px rgba(200, 60, 43, 0.35), 0 0 0 0 rgba(245, 158, 11, 0.55); }
+  50% { box-shadow: 0 10px 24px rgba(200, 60, 43, 0.45), 0 0 0 10px rgba(245, 158, 11, 0); }
+}
+
+.btn-track {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 18px;
+  border-radius: var(--radius-btn);
+  border: 2px solid var(--ink);
+  background: var(--ink);
+  color: var(--washi);
+  font-size: 1.04rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.btn-track.is-tracking {
+  background: var(--jade);
+  border-color: #1B4E40;
+  color: #FFFFFF;
+}
+
+.track-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--lantern-amber);
+}
+
+.track-dot.is-live {
+  background: #4ADE80;
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.3);
+  animation: pulseDot 1.3s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+.tracking-telemetry {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(46, 111, 94, 0.12);
+  border: 1px solid rgba(46, 111, 94, 0.35);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.gps-helper-note {
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+/* 驗收模擬列 */
+.qa-drawer {
+  margin-top: 14px;
+  border-top: 1px dashed var(--border-washi);
+  padding-top: 12px;
+}
+
+.qa-summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--ink-muted);
+  user-select: none;
+}
+
+.qa-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-qa {
+  min-height: 40px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-qa:hover {
+  border-color: var(--vermilion);
+}
+
+.btn-qa-gold {
+  background: #FEF3C7;
+  border-color: var(--gold-foil);
+  color: #78350F;
+}
+
+/* 香囊佇列 */
+.seed-queue-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-washi);
+}
+
+.seed-queue-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink-muted);
+}
+
+.seed-queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.seed-queue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--washi);
+  border: 1px solid var(--border-washi);
+}
+
+.queue-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.queue-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.queue-temple {
+  font-weight: 800;
+  font-size: 0.96rem;
+}
+
+.queue-meta {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.incubator-empty {
+  text-align: center;
+  padding: 20px 12px;
+}
+
+.empty-icon {
+  font-size: 2.6rem;
+  margin-bottom: 6px;
+}
+
+/* 雙向導流區（咖啡贊助 ＋ 宮廟申請加入） */
+.dual-cta-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .dual-cta-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.cta-coffee-btn,
+.cta-partner-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.16s, box-shadow 0.2s;
+}
+
+.cta-coffee-btn {
+  background: linear-gradient(135deg, #FFF7E0 0%, #FDE8B4 100%);
+  border: 2px solid var(--gold-foil);
+  color: #3D2807;
+}
+
+.cta-partner-btn {
+  background: linear-gradient(135deg, #27211E 0%, #1C1917 100%);
+  border: 2px solid var(--gold-foil);
+  color: #FAF3E3;
+}
+
+.cta-coffee-btn:hover,
+.cta-partner-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(41, 37, 36, 0.16);
+}
+
+.cta-main {
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.cta-sub {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+/* ==========================================================================
+   模組 B：探索宮廟雷達 (Explore & Seeding)
+   ========================================================================== */
+.gps-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--washi);
+  border: 1px solid var(--border-washi);
+  margin-bottom: 12px;
+}
+
+.gps-coord-pill {
+  font-size: 0.94rem;
+}
+
+.radar-primary-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo-loc-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.demo-loc-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.demo-loc-select {
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi-card);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-pill {
+  min-height: 40px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.filter-pill.is-active {
+  background: var(--vermilion);
+  border-color: var(--vermilion);
+  color: #FFFDF8;
+}
+
+.seed-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .seed-legend-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.seed-legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.14s;
+}
+
+.seed-legend-chip.is-active {
+  border-color: var(--seed-color);
+  background: var(--seed-bg);
+  color: #292524;
+}
+
+.seed-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.28);
+}
+
+.seed-chip-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.seed-chip-text strong { font-size: 0.92rem; }
+.seed-chip-text small { font-size: 0.78rem; opacity: 0.82; }
+
+.temple-radar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.temple-radar-card.is-in-range {
+  border: 2px solid var(--vermilion);
+  box-shadow: 0 10px 28px rgba(200, 60, 43, 0.16);
+}
+
+.radar-card-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.radar-craft-thumb {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+.craft-badge-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.radar-main-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.radar-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dist-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 900;
+  background: var(--washi-deep);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.dist-badge.is-near {
+  background: var(--vermilion);
+  color: #FFFDF8;
+}
+
+.partner-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid var(--gold-foil);
+}
+
+.collected-mini-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: #E6F4EE;
+  color: var(--jade);
+}
+
+.radar-temple-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.26rem;
+  font-weight: 900;
+}
+
+.radar-temple-loc {
+  margin: 3px 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+}
+
+.radar-story-snippet {
+  margin: 8px 0 12px;
+  font-size: 0.94rem;
+  color: var(--ink-muted);
+}
+
+.radar-reward-strip {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.14);
+  border: 1px dashed var(--gold-foil);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.radar-checkin-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.range-status {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.range-status.is-unlocked { color: var(--vermilion); }
+.range-status.is-locked { color: var(--ink-soft); }
+
+.dual-checkin-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn-sim-arrive,
+.btn-qr-inline {
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-sim-arrive {
+  background: var(--washi);
+  color: var(--ink);
+  border: 1.5px solid var(--gold-foil);
+}
+
+.btn-sim-arrive:hover {
+  background: #FEF3C7;
+  color: #292524;
+}
+
+.btn-qr-inline {
+  background: var(--washi-deep);
+  color: var(--ink);
+  border: 1.5px solid var(--border-washi);
+}
+
+.checkin-done-banner {
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: rgba(46, 111, 94, 0.14);
+  border: 1.5px solid var(--jade);
+  color: var(--jade);
+  font-weight: 800;
+  text-align: center;
+}
+
+html.theme-night .checkin-done-banner {
+  color: #86EFAC;
+}
+
+.external-3d-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--vermilion);
+  text-decoration: none;
+}
+
+.external-3d-link:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   模組 D：御朱印圖鑑（日式折疊帳 Accordion & 典雅網格 Grid + 3D 翻面）
+   ========================================================================== */
+.album-layout-toggle {
+  display: inline-flex;
+  background: var(--washi-deep);
+  border-radius: 11px;
+  padding: 3px;
+  border: 1px solid var(--border-washi);
+}
+
+.layout-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.layout-btn.is-active {
+  background: var(--vermilion);
+  color: #FFFDF8;
+}
+
+.album-progress-wrap {
+  margin-top: 8px;
+}
+
+.album-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.94rem;
+}
+
+.gold-medal-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FEF3C7, #F5DF98);
+  border: 1.5px solid var(--gold-foil);
+  color: #78350F;
+  font-weight: 900;
+  font-size: 0.84rem;
+}
+
+/* 網格排版 */
+.goshuin-collection.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(295px, 1fr));
+  gap: 20px;
+}
+
+/* 日式蛇腹折疊帳（橫向滑動手帳折頁） */
+.goshuin-collection.layout-accordion {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 0;
+  padding: 12px 6px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.goshuin-collection.layout-accordion .goshuin-folio {
+  flex: 0 0 min(86vw, 355px);
+  scroll-snap-align: center;
+  position: relative;
+}
+
+/* 蛇腹折頁中縫立體陰影 */
+.goshuin-collection.layout-accordion .goshuin-folio + .goshuin-folio::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 14px;
+  bottom: 14px;
+  width: 8px;
+  z-index: 4;
+  background: linear-gradient(90deg, rgba(41, 37, 36, 0.22), rgba(255, 255, 255, 0.35), rgba(41, 37, 36, 0.16));
+  pointer-events: none;
+}
+
+/* 單頁御朱印卡片（含 3D 翻面） */
+.goshuin-folio {
+  perspective: 1200px;
+  min-height: 556px;
+}
+
+.folio-paper-locked {
+  height: 100%;
+  min-height: 556px;
+  background: var(--washi-card);
+  border: 1.5px dashed var(--border-washi);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  opacity: 0.88;
+}
+
+.folio-locked-header,
+.folio-front-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.locked-pill {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+
+.unlocked-pill {
+  font-size: 0.8rem;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(200, 60, 43, 0.12);
+  color: var(--vermilion);
+}
+
+.unlocked-pill.is-rare {
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  color: #78350F;
+  border: 1px solid var(--gold-foil);
+}
+
+.stamp-date {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.folio-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 556px;
+  transition: transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-style: preserve-3d;
+}
+
+.goshuin-folio.is-flipped .folio-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.folio-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--washi-card);
+  border: 2px solid var(--gold-foil);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.goshuin-folio.is-rare .folio-face {
+  border-width: 3px;
+  box-shadow: 0 12px 30px rgba(212, 175, 55, 0.28);
+}
+
+.folio-back {
+  transform: rotateY(180deg);
+}
+
+.folio-tap-area {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
+}
+
+.folio-visual-pair {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.goshuin-svg {
+  width: 205px;
+  height: auto;
+  display: block;
+}
+
+.craft-corner-badge {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  background: var(--washi);
+  border: 1.5px solid var(--gold-foil);
+  border-radius: 999px;
+  padding: 4px 14px 4px 6px;
+  box-shadow: 0 4px 12px rgba(41, 37, 36, 0.08);
+}
+
+.craft-corner-badge .craft-badge-svg {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.craft-badge-caption {
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.flip-hint-bar {
+  margin: 8px 0;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+
+.folio-front-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.folio-locked-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-washi);
+}
+
+.folio-meta-city {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* 背面：建築工藝、故事與結緣品憑證 */
+.folio-back-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-washi);
+}
+
+.back-temple-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.back-temple-sub {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.back-story-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.story-block h4 {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  color: var(--vermilion);
+}
+
+.story-block p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.58;
+  color: var(--ink-muted);
+}
+
+.voucher-ticket {
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.11);
+  border: 1.5px dashed var(--gold-foil);
+}
+
+.voucher-ticket.is-redeemed {
+  background: rgba(46, 111, 94, 0.1);
+  border-color: var(--jade);
+}
+
+.voucher-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.voucher-title {
+  font-weight: 900;
+  font-size: 0.88rem;
+}
+
+.voucher-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--washi-card);
+  border: 1px solid var(--border-washi);
+}
+
+.voucher-desc {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.voucher-note {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.btn-voucher-redeem {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 9px;
+  border: 1.5px solid var(--gold-deep);
+  background: var(--gold-foil);
+  color: #1C1917;
+  font-size: 0.88rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.voucher-stamped {
+  font-size: 0.84rem;
+  font-weight: 900;
+  color: var(--jade);
+}
+
+.folio-back-footer {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-washi);
+}
+
+/* ==========================================================================
+   底部固定導覽列
+   ========================================================================== */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(28, 25, 23, 0.96);
+  backdrop-filter: blur(10px);
+  border-top: 2px solid var(--gold-foil);
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.24);
+}
+
+.nav-tab {
+  flex: 1;
+  max-width: 200px;
+  min-height: 54px;
+  border: none;
+  background: transparent;
+  color: #D6CFC4;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-tab.is-active {
+  background: rgba(200, 60, 43, 0.26);
+  color: #FDE68A;
+  box-shadow: inset 0 0 0 1.5px rgba(212, 175, 55, 0.55);
+}
+
+.nav-icon {
+  position: relative;
+  font-size: 1.32rem;
+  line-height: 1;
+}
+
+.nav-alert-dot {
+  position: absolute;
+  top: -3px;
+  right: -7px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lantern-amber);
+  box-shadow: 0 0 8px var(--lantern-amber);
+}
+
+.nav-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+/* ==========================================================================
+   儀式彈窗與朱印蓋章動畫
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(20, 17, 15, 0.76);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--washi-card);
+  color: var(--ink);
+  border: 2.5px solid var(--gold-foil);
+  border-radius: 22px;
+  padding: 22px 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  position: relative;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.modal-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.24rem;
+  font-weight: 900;
+}
+
+.modal-close-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.modal-desc {
+  margin: 0 0 14px;
+  font-size: 0.94rem;
+  color: var(--ink-muted);
+}
+
+.modal-btn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.modal-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+@media (max-width: 480px) {
+  .modal-btn-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 開花顯化蓋印動畫 */
+.hatch-modal-panel {
+  text-align: center;
+  overflow: hidden;
+}
+
+.hatch-glow-burst {
+  position: absolute;
+  inset: -60px;
+  background: radial-gradient(circle at 50% 35%, rgba(245, 158, 11, 0.25), transparent 62%);
+  pointer-events: none;
+}
+
+.hatch-scroll-label {
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: var(--vermilion);
+}
+
+.hatch-temple-name {
+  margin: 6px 0 4px;
+  font-family: var(--font-brush);
+  font-size: 1.9rem;
+}
+
+.hatch-blessing {
+  margin: 0 0 16px;
+  color: var(--gold-deep);
+  font-weight: 800;
+}
+
+html.theme-night .hatch-blessing {
+  color: var(--lantern-amber);
+}
+
+.stamp-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: 8px 0 14px;
+}
+
+.stamp-slam-wrapper {
+  animation: stampSlam 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes stampSlam {
+  0% { opacity: 0; transform: scale(2.15) rotate(-14deg); filter: blur(3px); }
+  58% { opacity: 1; transform: scale(0.92) rotate(2deg); filter: blur(0); }
+  76% { transform: scale(1.04) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.hatch-craft-reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--washi);
+  border: 1.5px solid var(--gold-foil);
+  text-align: left;
+}
+
+.hatch-craft-reveal .craft-badge-svg {
+  width: 58px;
+  height: 58px;
+}
+
+.craft-unlock-tag {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--vermilion);
+}
+
+.hatch-voucher-banner {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1.5px dashed var(--gold-foil);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+/* 分享卡工作室 */
+.blessing-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.blessing-chip {
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blessing-chip.is-active {
+  background: var(--vermilion);
+  border-color: var(--vermilion);
+  color: #FFFDF8;
+}
+
+.share-preview-frame {
+  background: #1C1917;
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 280px;
+}
+
+.share-preview-img {
+  width: 100%;
+  max-width: 270px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.share-loading {
+  color: #FDE68A;
+  font-weight: 800;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+/* QR Code 掃碼彈窗 */
+.qr-camera-box {
+  border-radius: 14px;
+  background: #1C1917;
+  color: #FAF3E3;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.qr-video {
+  width: 100%;
+  max-height: 220px;
+  border-radius: 10px;
+  object-fit: cover;
+  margin-bottom: 10px;
+}
+
+.qr-manual-form {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.qr-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.washi-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  font-size: 0.96rem;
+}
+
+.qr-demo-section {
+  border-top: 1px dashed var(--border-washi);
+  padding-top: 12px;
+}
+
+.qr-demo-heading {
+  font-size: 0.9rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.qr-url-tip {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  word-break: break-all;
+}
+
+.qr-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.qr-demo-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 11px;
+  border: 1.5px solid var(--border-washi);
+  background: var(--washi);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.qr-demo-card:hover {
+  border-color: var(--vermilion);
+}
+
+.qr-demo-thumb {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.styled-qr-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.qr-demo-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.qr-demo-meta strong {
+  font-size: 0.86rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qr-demo-meta span {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  font-family: monospace;
+}
+
+/* 贊助彈窗與宮廟合作彈窗 */
+.sponsor-qr-box {
+  text-align: center;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--washi);
+  border: 1.5px dashed var(--gold-foil);
+}
+
+.sponsor-qr-frame {
+  width: 168px;
+  height: 168px;
+  margin: 0 auto 10px;
+}
+
+.sponsor-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.sponsor-qr-label {
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+.sponsor-qr-note {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.partner-benefits-list {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--washi);
+  border: 1px solid var(--border-washi);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.92rem;
+}
+
+.partner-line-box {
+  margin-bottom: 16px;
+}
+
+.form-section-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+/* 核銷彈窗 */
+.redeem-summary-box {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--washi);
+  border: 1.5px solid var(--gold-foil);
+  margin-bottom: 12px;
+}
+
+.redeem-temple {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.redeem-code {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  margin: 4px 0 8px;
+}
+
+.redeem-gift {
+  margin: 0;
+  font-weight: 800;
+  color: var(--vermilion);
+}
+
+.redeem-warning {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  margin: 0 0 10px;
+}
+
+/* ==========================================================================
+   Toast 溫馨提示
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: min(92vw, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-pill {
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #1C1917;
+  color: #FAF6EC;
+  border: 1.5px solid var(--gold-foil);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+  font-size: 0.94rem;
+  font-weight: 700;
+  text-align: center;
+  animation: toastIn 0.25s ease-out;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast-success {
+  border-color: var(--lantern-amber);
+}
+
+.toast-error {
+  background: #7F1D1D;
+  border-color: #FCA5A5;
+}
+
+.toast-pill.is-leaving {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}

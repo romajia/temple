@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1C1917" />
+  <title>御朱燈影：跟著宮廟去旅行</title>
+  <meta name="description" content="免下載純網頁版！結合台灣宮廟旅行距離累積、四種靈韻香火苗養成、台日宗教美學御朱印圖鑑與 1080×1920 祝賀分享卡。" />
+
+  <!-- Open Graph / LINE 分享預覽 -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="御朱燈影：跟著宮廟去旅行" />
+  <meta property="og:description" content="沿途參拜播種靈韻香火苗，以雙腳與旅程顯化台灣百年宮廟朱紅御朱印與工藝徽章。" />
+  <meta property="og:image" content="./assets/icon-512.png" />
+
+  <!-- PWA 設定 -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="./assets/icon-512.png" />
+
+  <!-- Google Fonts：書法毛筆 Yuji Syuku + 典雅明體 Noto Serif TC + 易讀無襯線 Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Noto+Serif+TC:wght@700;900&family=Yuji+Syuku&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <!-- 全域 SVG 印泥質感濾鏡掛載點 -->
+  <div id="svg-defs-host" aria-hidden="true"></div>
+
+  <!-- 主應用程式掛載容器 -->
+  <div id="app-root">
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif TC',serif;color:#292524;background:#F7F3E8;padding:24px;text-align:center;">
+      <div>
+        <div style="font-size:44px;margin-bottom:10px;">🏮</div>
+        <div style="font-size:22px;font-weight:900;letter-spacing:0.12em;">御朱燈影：跟著宮廟去旅行</div>
+        <div style="font-size:15px;color:#78716C;margin-top:6px;">正在鋪展和紙御朱印帳…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 儀式彈窗與 Toast 通知容器 -->
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-container" aria-live="polite"></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
