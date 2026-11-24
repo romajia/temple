@@ -1,19 +1,17 @@
 /**
- * Firebase Realtime Database / Firestore 多人即時同步預留設定
+ * Firebase Realtime Database 跨裝置多人即時同步設定
  * ------------------------------------------------------------
- * 預設 enabled: false，系統會自動降級為「本機狀態 + 同瀏覽器分頁即時同步 + AI 廟公陪聊」，
- * 確保免設定金鑰即可 100% 完整運作。
- *
- * 若未來要啟用跨裝置多人即時連線：
- * 1. 於 Firebase Console 建立專案並啟用 Realtime Database
- * 2. 將下方 enabled 改為 true 並填入您的 Firebase 設定值
+ * 已連線至專屬雲端資料庫，支援 GitHub Pages 跨手機／跨電腦：
+ * - 多人即時同屏漫步與頭頂發言氣泡
+ * - 多人統一聊天紀錄即時同步
+ * - 管理者公佈欄、建廟進度、捐款芳名錄、安太歲紅紙牆與供桌全站即時同步
  */
 export const FIREBASE_CONFIG = {
-  enabled: false,
+  enabled: true,
   apiKey: '',
   authDomain: '',
-  databaseURL: '',
-  projectId: '',
+  databaseURL: 'https://temple-9b8fb-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'temple-9b8fb',
   storageBucket: '',
   messagingSenderId: '',
   appId: ''

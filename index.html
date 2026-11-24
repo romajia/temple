@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>台南港口玉勅代天府德慈宮｜3D Q版線上參拜</title>
+  <title>玉勅代天府德慈宮｜3D Q版線上參拜</title>
 
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -194,12 +194,12 @@
   </style>
 </head>
 <body class="font-sans text-[#183C32]">
-  <!-- ★ 專屬宮廟遊戲載入畫面（開啟頁面即刻顯示進度條，標題：台南港口玉勅代天府德慈宮） -->
+  <!-- ★ 專屬宮廟遊戲載入畫面（開啟頁面即刻顯示進度條，標題：玉勅代天府德慈宮） -->
   <div id="app-loader" role="status" aria-live="polite">
     <div class="loader-card">
       <div class="loader-emblem animate-float-soft">🏮</div>
-      <div class="loader-sub">代天巡狩・五府千歲・3D 線上參拜</div>
-      <h1 class="loader-title">台南港口玉勅代天府德慈宮</h1>
+      <div class="loader-sub">代天巡狩・五年千歲・3D 線上參拜</div>
+      <h1 class="loader-title">玉勅代天府德慈宮</h1>
       <div class="loader-wait">遊戲載入中... 請耐心等候...</div>
       <div class="loader-track">
         <div id="loader-bar" class="loader-fill"></div>
@@ -270,7 +270,7 @@
         host.innerHTML =
           '<div class="loader-card">' +
             '<div class="loader-emblem">🙏</div>' +
-            '<div class="loader-sub">台南港口玉勅代天府德慈宮</div>' +
+            '<div class="loader-sub">玉勅代天府德慈宮</div>' +
             '<h2 style="font-size:20px;font-weight:900;color:#FFE49E;margin:4px 0 12px;">' + safeTitle + '</h2>' +
             '<p style="font-size:13px;line-height:1.65;color:#F5E6C8;margin:0 0 16px;text-align:left;">' + safeDetail + '</p>' +
             (safeRaw ? '<div style="font-size:11px;font-family:monospace;color:#FCA5A5;background:rgba(0,0,0,0.35);padding:8px 10px;border-radius:10px;margin-bottom:16px;word-break:break-all;text-align:left;">' + safeRaw + '</div>' : '') +
@@ -291,11 +291,10 @@
         <div class="min-w-0">
           <div class="text-[10px] font-extrabold tracking-[0.08em] text-[#8E1515] leading-none whitespace-nowrap">
             <span class="sm:hidden">安定區港口里</span>
-            <span class="hidden sm:inline">安定區港口里・代天巡狩五府千歲</span>
+            <span class="hidden sm:inline">安定區港口里・代天巡狩五年千歲</span>
           </div>
-          <div class="font-serif font-black text-sm sm:text-lg tracking-[0.08em] sm:tracking-[0.12em] mt-0.5 leading-tight text-[#183C32] whitespace-nowrap">
-            <span class="sm:hidden">港口德慈宮</span>
-            <span class="hidden sm:inline">台南港口玉勅代天府德慈宮</span>
+          <div class="font-serif font-black text-[13px] sm:text-lg tracking-[0.04em] sm:tracking-[0.12em] mt-0.5 leading-tight text-[#183C32] whitespace-nowrap">
+            玉勅代天府德慈宮
           </div>
         </div>
         <span id="online-status-pill" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F4EC] border border-[#2F855A]/40 text-xs font-extrabold text-[#14532D] shrink-0">
@@ -337,7 +336,7 @@
   <!-- 中央上方溫馨 Toast 提示容器 -->
   <div id="toast-host" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-lg text-center"></div>
 
-  <!-- 底部視角切換列（★ 手機整齊置中位於聊天框正上方 bottom-[60px]，與上方搖桿／互動鈕完全分離零重疊！） -->
+  <!-- 底部視角切換列（★ 已取消虛擬搖桿，僅保留視角切換、拉近拉遠、走出廟外與廟務後台！） -->
   <div class="fixed bottom-[60px] sm:bottom-3 left-2.5 right-2.5 sm:left-auto sm:right-3 z-30 flex items-center justify-between sm:justify-end gap-1.5 pointer-events-none">
     <div class="pointer-events-auto flex items-center gap-0.5 p-1 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.24)] text-[#183C32]">
       <button data-cam-preset="front" title="正面視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg bg-[#8E1515] text-[#FFFDF6] text-xs font-black transition shadow-sm whitespace-nowrap">正面</button>
@@ -347,7 +346,6 @@
       <span class="w-px h-5 bg-[#D4BC90] mx-0.5"></span>
       <button id="cam-zoom-in" title="拉近視角" class="w-7 h-8 rounded-lg hover:bg-[#F3E6CA] text-base font-black text-[#183C32] transition">＋</button>
       <button id="cam-zoom-out" title="拉遠視角" class="w-7 h-8 rounded-lg hover:bg-[#F3E6CA] text-base font-black text-[#183C32] transition">－</button>
-      <button id="btn-toggle-joy" title="顯示/隱藏左下虛擬搖桿" class="px-1.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-xs font-bold text-[#183C32] transition">🕹️</button>
     </div>
     <button id="btn-admin-entry" title="廟務管理後臺"
       class="pointer-events-auto px-2.5 sm:px-3 h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#8E1515] text-[#8E1515] hover:text-[#FFFDF6] text-xs font-black border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.24)] transition whitespace-nowrap shrink-0">
@@ -355,7 +353,13 @@
     </button>
   </div>
 
-  <!-- 左下角半透明虛擬搖桿 & 備用容器 -->
+  <!-- 進入大殿屋內時專屬「走出廟外」浮動快捷鈕（獨立置於左下角不與聊天框或視角列重疊！） -->
+  <button id="btn-exit-hall" title="走出大殿回到廟埕"
+    class="hidden fixed left-3 bottom-[112px] sm:left-4 sm:bottom-4 z-30 px-3.5 h-10 rounded-xl bg-[#183C32] hover:bg-[#235245] text-[#FFFBF2] border-2 border-[#E5B968] shadow-[0_6px_18px_rgba(10,24,20,0.38)] text-xs sm:text-sm font-black transition whitespace-nowrap">
+    🚪 走出廟外
+  </button>
+
+  <!-- 右側互動提示鈕掛載點（已取消虛擬搖桿） -->
   <div id="joystick-root"></div>
   <div id="proximity-action-root"></div>
 
@@ -367,6 +371,6 @@
   <div id="modal-root"></div>
   <div id="welcome-root"></div>
 
-  <script type="module" src="./src/main.js?v=20261122v15"></script>
+  <script type="module" src="./src/main.js?v=20261124v19"></script>
 </body>
 </html>

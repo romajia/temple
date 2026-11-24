@@ -30,6 +30,7 @@ export class DayNightAtmosphere {
     this.mode = 'day';
     this.nightFactor = 0;
     this.targetNight = 0;
+    this.indoorMode = false;
 
     this.root = new THREE.Group();
     this.scene.add(this.root);
@@ -290,12 +291,25 @@ export class DayNightAtmosphere {
     return this.mode;
   }
 
+  setIndoorMode(enabled) {
+    const next = Boolean(enabled);
+    if (this.indoorMode === next) return;
+    this.indoorMode = next;
+    this.root.visible = !next;
+    this._applyThemeImmediate(this.nightFactor);
+  }
+
   _applyThemeImmediate(nf) {
     const D = LIGHTING_THEMES.day;
     const N = LIGHTING_THEMES.night;
 
-    this.scene.background.copy(new THREE.Color(D.skyColor).lerp(new THREE.Color(N.skyColor), nf));
-    if (this.scene.fog) this.scene.fog.color.copy(new THREE.Color(D.fogColor).lerp(new THREE.Color(N.fogColor), nf));
+    if (this.indoorMode) {
+      this.scene.background.set('#1B100C');
+      if (this.scene.fog) this.scene.fog.color.set('#1B100C');
+    } else {
+      this.scene.background.copy(new THREE.Color(D.skyColor).lerp(new THREE.Color(N.skyColor), nf));
+      if (this.scene.fog) this.scene.fog.color.copy(new THREE.Color(D.fogColor).lerp(new THREE.Color(N.fogColor), nf));
+    }
     this.scene.environmentIntensity = THREE.MathUtils.lerp(0.30, 0.22, nf);
 
     this.lights.sun.color.copy(new THREE.Color(D.sunColor).lerp(new THREE.Color(N.sunColor), nf));

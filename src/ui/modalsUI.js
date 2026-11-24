@@ -338,7 +338,7 @@ export class TempleModalsUI {
                     <div class="sm:col-span-2">
                       <label class="font-bold text-[#5C3A21] block mb-1">心中祈願語（將傳達給神明）*</label>
                       <input id="off-wish" type="text" required maxlength="36"
-                        placeholder="例：祈求五府千歲保佑闔家平安健康..."
+                        placeholder="例：祈求五年千歲保佑闔家平安健康..."
                         value="${this._esc(selectedDef.blessing)}"
                         class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#C98A28] font-bold text-[#261109]" />
                     </div>
@@ -444,10 +444,35 @@ export class TempleModalsUI {
             <h2 class="font-black text-lg">🙏 正殿中央・誠心拜主神</h2>
             <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
           </div>
-          <div class="p-5 space-y-4 text-center">
+          <div class="p-5 space-y-3.5 text-center max-h-[80vh] overflow-y-auto">
             <div class="bg-[#FFF3D6] border-2 border-[#E6B44C] rounded-2xl p-3.5">
               <div class="font-black text-sm text-[#8E1515]">玉勅代天府德慈宮・主祀神聖</div>
-              <div class="text-xs font-bold text-[#5C3A21] mt-1">代天巡狩・五府千歲 ｜ 觀音佛祖 ｜ 天上聖母</div>
+              <div class="text-xs font-bold text-[#5C3A21] mt-1">代天巡狩・五年千歲（盧千歲） ｜ 觀音佛祖 ｜ 天上聖母</div>
+            </div>
+            <!-- ★ 專屬神尊小知識卡片 -->
+            <div class="bg-[#FBF3E0] border-2 border-[#C98A28] rounded-2xl p-3.5 text-left space-y-2 shadow-inner">
+              <div class="flex items-center gap-1.5 text-xs font-black text-[#8E1515]">
+                <span>📜</span>
+                <span>德慈宮神尊小知識｜認識「五年千歲・盧千歲」</span>
+              </div>
+              <p class="text-xs text-[#3E1C11] font-semibold leading-relaxed">
+                本宮主祀的<strong>「代天巡狩・五年千歲」</strong>神尊，正是<strong>十二瘟王</strong>之中的<strong>【盧千歲】</strong>！在民間信仰與地方稱呼中，以下尊稱皆指同一位護佑眾生的王爺公：
+              </p>
+              <div class="flex flex-wrap items-center gap-1 text-[11px] font-black text-[#183C32] bg-[#FFFBF2] border border-[#DFC694] rounded-xl px-2.5 py-2 leading-relaxed">
+                <span class="px-1.5 py-0.5 rounded bg-[#991B1B] text-[#FFFDF6]">盧千歲</span>
+                <span class="text-[#B45309]">＝</span>
+                <span class="px-1.5 py-0.5 rounded bg-[#FEF3C7] border border-[#D97706]">五年千歲</span>
+                <span class="text-[#B45309]">＝</span>
+                <span class="px-1.5 py-0.5 rounded bg-[#FEF3C7] border border-[#D97706]">十二瘟王</span>
+                <span class="text-[#B45309]">＝</span>
+                <span class="px-1.5 py-0.5 rounded bg-[#FEF3C7] border border-[#D97706]">代天巡狩千歲爺</span>
+                <span class="text-[#B45309]">＝</span>
+                <span class="px-1.5 py-0.5 rounded bg-[#FEF3C7] border border-[#D97706]">千歲爺</span>
+                <span class="text-[#B45309]">＝</span>
+                <span class="px-1.5 py-0.5 rounded bg-[#FEF3C7] border border-[#D97706]">代天巡狩</span>
+                <span class="text-[#B45309]">＝</span>
+                <span class="px-1.5 py-0.5 rounded bg-[#FEF3C7] border border-[#D97706]">王爺公</span>
+              </div>
             </div>
             <p class="text-xs text-[#4A2210] leading-relaxed">
               立於正殿中央紅毯面向神龕，無需移至拜墊即可虔誠行三拜禮並上前插上三柱清香。<br>
@@ -525,7 +550,7 @@ export class TempleModalsUI {
 
         <div class="flex flex-wrap items-center justify-center gap-3">
           <button id="btn-tap-fish" class="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#8E1515] hover:bg-[#701010] text-[#FFFDF6] font-black text-sm shadow-lg border border-[#FCE07C] active:scale-90 transition">
-            <span id="fish-icon" class="text-xl inline-block transition-transform">🪵</span>
+            <span id="fish-icon" class="text-xl inline-block transition-transform">📿</span>
             <span>輕敲木魚（誦下一句）</span>
           </button>
           <button id="btn-auto-fish" class="px-4 py-2.5 rounded-full text-xs font-black border-2 transition ${
@@ -544,7 +569,7 @@ export class TempleModalsUI {
       this.chantTapCount++;
       const tapRes = storageSync.addChantTap();
       if (tapRes.reward > 0) {
-        this.hooks.onMeritEarned?.(tapRes.reward, `🪵 虔誠敲擊木魚念經（累計 ${tapRes.total} 下），獲得 +${tapRes.reward} 功德！`);
+        this.hooks.onMeritEarned?.(tapRes.reward, `📿 虔誠敲擊木魚念經（累計 ${tapRes.total} 下），獲得 +${tapRes.reward} 功德！`);
       }
       this.chantLineIdx = (this.chantLineIdx + 1) % sutra.lines.length;
       if (this.chantLineIdx === 0) soundEngine.playBell(0.18, 440);
@@ -625,7 +650,7 @@ export class TempleModalsUI {
     return `
       <form id="fort-form" class="space-y-4">
         <div class="bg-[#FEF3C7] border-2 border-[#E6B44C] rounded-2xl p-3.5 text-xs font-medium text-[#5C2D0C] leading-relaxed">
-          👴 <strong>阿財伯叮嚀：</strong>求籤前先靜心，把您的姓名和目前最想問的事誠心稟報給五府千歲、觀音佛祖與天上聖母喔！
+          👴 <strong>阿財伯叮嚀：</strong>求籤前先靜心，把您的姓名和目前最想問的事誠心稟報給五年千歲（盧千歲）、觀音佛祖與天上聖母喔！
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -845,7 +870,7 @@ export class TempleModalsUI {
           <div class="text-center mb-4">
             <p class="text-sm font-black text-[#6B2F1A]">請點擊想閱覽的廟務海報，專心查看單一主題內容：</p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- 海報 1：最新廟務公告 -->
             <button data-open-poster="announcements"
               class="group text-left rounded-2xl overflow-hidden border-3 border-[#C8232C] bg-gradient-to-b from-[#9E1B1B] to-[#741111] text-[#FFF9E6] shadow-xl hover:-translate-y-1 transition flex flex-col justify-between min-h-[250px] p-4">
@@ -901,6 +926,25 @@ export class TempleModalsUI {
               </div>
               <div class="pt-4 border-t border-white/20 flex items-center justify-between text-xs font-bold text-[#FBE39C]">
                 <span>共 ${donors.length} 筆善信芳名</span>
+                <span class="group-hover:translate-x-1 transition">點開閱讀 ➔</span>
+              </div>
+            </button>
+
+            <!-- 海報 4：神尊小知識（五年千歲・十二瘟王盧千歲） -->
+            <button data-open-poster="deityLore"
+              class="group text-left rounded-2xl overflow-hidden border-3 border-[#B45309] bg-gradient-to-b from-[#6B1D1D] via-[#8B2323] to-[#4A1212] text-[#FFF9E6] shadow-xl hover:-translate-y-1 transition flex flex-col justify-between min-h-[250px] p-4">
+              <div>
+                <div class="flex items-center justify-between">
+                  <span class="px-2 py-0.5 rounded-full bg-[#FAD364] text-[#5C1111] text-[10px] font-black">神尊小知識</span>
+                  <span class="text-2xl">📜</span>
+                </div>
+                <h3 class="font-serif font-black text-xl tracking-wider mt-4 text-[#FFE89E]">認識代天巡狩五年千歲</h3>
+                <p class="text-xs text-[#FDE8C8] mt-2 leading-relaxed">
+                  你知道嗎？本宮主祀的「代天巡狩五年千歲」正是十二瘟王的<strong>盧千歲</strong>！點開一次看懂七大常見尊稱。
+                </p>
+              </div>
+              <div class="pt-4 border-t border-white/20 flex items-center justify-between text-xs font-bold text-[#FAD364]">
+                <span>盧千歲 ＝ 五年千歲 ＝ 王爺公</span>
                 <span class="group-hover:translate-x-1 transition">點開閱讀 ➔</span>
               </div>
             </button>
@@ -972,6 +1016,48 @@ export class TempleModalsUI {
                   <div class="font-black text-sm text-[#B91C1C]">${this._esc(d.amount)}</div>
                 </div>
               `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (selectedPoster === 'deityLore') {
+        bodyHtml = `
+          <div class="space-y-4 animate-fade-in">
+            <div class="flex items-center justify-between pb-2 border-b border-[#E5D3B3]">
+              <h3 class="font-serif font-black text-xl text-[#8E1515]">📜 神尊小知識｜代天巡狩五年千歲（盧千歲）</h3>
+              <button data-back-posters class="px-3.5 py-1.5 rounded-xl bg-[#F5E6CC] hover:bg-[#EAD2AC] border border-[#C98A28] text-xs font-black text-[#4A2210]">← 返回海報牆</button>
+            </div>
+            <div class="bg-gradient-to-b from-[#FFF8E7] to-[#FEF3D6] border-2 border-[#C98A28] rounded-3xl p-5 space-y-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-[#8E1515] border-2 border-[#FAD364] flex items-center justify-center text-2xl shrink-0">🏮</div>
+                <div>
+                  <div class="text-xs font-black text-[#8E1515] tracking-wider">玉勅代天府德慈宮・主祀神尊源流</div>
+                  <div class="font-serif font-black text-lg text-[#183C32]">十二瘟王・盧千歲（代天巡狩五年千歲）</div>
+                </div>
+              </div>
+              <p class="text-sm text-[#3E1C11] font-semibold leading-relaxed bg-white/85 rounded-2xl p-4 border border-[#E5D3B3]">
+                玉勅代天府德慈宮正殿所供奉的<strong>「代天巡狩・五年千歲」</strong>神尊，正是台灣王爺信仰中威靈顯赫的<strong>十二瘟王之「盧千歲」</strong>！奉玉旨代天巡狩、護境安民、消災解厄。
+              </p>
+              <div class="bg-white rounded-2xl p-4 border-2 border-[#D97706] space-y-2.5">
+                <div class="text-xs font-black text-[#8E1515]">✨ 民間常見七大尊稱一次看懂（皆指同一位千歲爺）：</div>
+                <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-black text-[#183C32]">
+                  <span class="px-2.5 py-1 rounded-xl bg-[#8E1515] text-[#FFFDF6] shadow-xs">盧千歲</span>
+                  <span class="text-[#C2410C]">＝</span>
+                  <span class="px-2.5 py-1 rounded-xl bg-[#FEF3C7] border border-[#D97706]">五年千歲</span>
+                  <span class="text-[#C2410C]">＝</span>
+                  <span class="px-2.5 py-1 rounded-xl bg-[#FEF3C7] border border-[#D97706]">十二瘟王</span>
+                  <span class="text-[#C2410C]">＝</span>
+                  <span class="px-2.5 py-1 rounded-xl bg-[#FEF3C7] border border-[#D97706]">代天巡狩千歲爺</span>
+                  <span class="text-[#C2410C]">＝</span>
+                  <span class="px-2.5 py-1 rounded-xl bg-[#FEF3C7] border border-[#D97706]">千歲爺</span>
+                  <span class="text-[#C2410C]">＝</span>
+                  <span class="px-2.5 py-1 rounded-xl bg-[#FEF3C7] border border-[#D97706]">代天巡狩</span>
+                  <span class="text-[#C2410C]">＝</span>
+                  <span class="px-2.5 py-1 rounded-xl bg-[#FEF3C7] border border-[#D97706]">王爺公</span>
+                </div>
+                <p class="text-xs text-[#6B4E3D] font-medium pt-1">
+                  💡 下次聽到長輩或香客稱呼「盧千歲」、「五年千歲」、「十二瘟王」、「代天巡狩千歲爺」、「千歲爺」、「代天巡狩」或親切地喊一聲「王爺公」，都是指同一尊慈悲威嚴的鎮殿主神喔！
+                </p>
+              </div>
             </div>
           </div>
         `;

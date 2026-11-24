@@ -9,94 +9,30 @@ export class VirtualJoystickUI {
     this.onMoveVector = onMoveVector;
     this.onTriggerProximity = onTriggerProximity;
 
-    this.visible = this._detectMobileOrTouch();
+    this.visible = false; // ★ 已依需求取消虛擬搖桿，僅保留互動按鈕！
     this.activePointerId = null;
     this.maxRadius = 40;
     this.currentProximity = null;
 
-    this.renderJoystick();
+    if (this.joyRoot) this.joyRoot.innerHTML = '';
     this.setProximityTarget(null);
   }
 
   _detectMobileOrTouch() {
-    return (
-      window.innerWidth <= 1024 ||
-      'ontouchstart' in window ||
-      (navigator.maxTouchPoints || 0) > 0
-    );
+    return false;
   }
 
   toggleJoystick() {
-    this.visible = !this.visible;
-    this.renderJoystick();
-    return this.visible;
+    this.visible = false;
+    if (this.joyRoot) this.joyRoot.innerHTML = '';
+    this.onMoveVector?.(0, 0);
+    return false;
   }
 
   renderJoystick() {
-    if (!this.visible) {
-      this.joyRoot.innerHTML = '';
-      this.onMoveVector?.(0, 0);
-      return;
-    }
-
-    this.joyRoot.innerHTML = `
-      <div id="vjoy-base"
-        class="fixed left-3 bottom-[122px] sm:left-4 sm:bottom-20 z-30 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#2A130C]/40 border-2 border-[#FAD364]/70 backdrop-blur-sm flex items-center justify-center touch-none select-none shadow-lg transition-opacity"
-        style="opacity: 0.56;">
-        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full border border-dashed border-[#FFF3C4]/60 pointer-events-none"></div>
-        <div id="vjoy-knob"
-          class="absolute w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-b from-[#FCE07C] to-[#D97706] border-2 border-white shadow-md pointer-events-none flex items-center justify-center text-xs font-bold text-[#4A1C0A]">
-          ✦
-        </div>
-        <span class="absolute -bottom-5 text-[10px] font-black text-[#1C2D28] bg-[#FFFBF2] border border-[#C98A28] px-2 py-0.5 rounded-full shadow pointer-events-none whitespace-nowrap">移動搖桿</span>
-      </div>
-    `;
-
-    const base = this.joyRoot.querySelector('#vjoy-base');
-    const knob = this.joyRoot.querySelector('#vjoy-knob');
-
-    const updateStick = (clientX, clientY) => {
-      const rect = base.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      let dx = clientX - cx;
-      let dy = clientY - cy;
-      const dist = Math.hypot(dx, dy);
-      if (dist > this.maxRadius) {
-        dx = (dx / dist) * this.maxRadius;
-        dy = (dy / dist) * this.maxRadius;
-      }
-      knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      this.onMoveVector?.(dx / this.maxRadius, dy / this.maxRadius);
-    };
-
-    const resetStick = () => {
-      this.activePointerId = null;
-      knob.style.transform = 'translate(0px, 0px)';
-      base.style.opacity = '0.44';
-      this.onMoveVector?.(0, 0);
-    };
-
-    base.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.activePointerId = e.pointerId;
-      base.setPointerCapture(e.pointerId);
-      base.style.opacity = '0.78';
-      updateStick(e.clientX, e.clientY);
-    });
-
-    base.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== this.activePointerId) return;
-      e.stopPropagation();
-      updateStick(e.clientX, e.clientY);
-    });
-
-    base.addEventListener('pointerup', (e) => {
-      if (e.pointerId !== this.activePointerId) return;
-      resetStick();
-    });
-
-    base.addEventListener('pointercancel', resetStick);
+    if (this.joyRoot) this.joyRoot.innerHTML = '';
+    this.onMoveVector?.(0, 0);
+    return;
   }
 
   /**

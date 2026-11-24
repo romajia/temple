@@ -1990,7 +1990,7 @@ export function createDeityRobeTexture(variant = 'leftMother') {
 }
 
 /**
- * 12. 紅綾金字神明肩帶紋理（還原實景照「鎮安宮五府千歲祖廟」紅綾背帶！）
+ * 12. 紅綾金字神明肩帶紋理（還原實景照「鎮安宮五年千歲祖廟」紅綾背帶！）
  */
 export function createDeitySashTexture(text = '玉勅代天府德慈宮') {
   const canvas = document.createElement('canvas');

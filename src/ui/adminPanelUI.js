@@ -16,6 +16,11 @@ export class AdminPanelUI {
     this.authenticated = false;
     this.activeTab = 'bulletin'; // 'bulletin' | 'taisui' | 'system'
     this.isOpen = false;
+    this.statusBanner = '';
+  }
+
+  _flashStatus(msg) {
+    this.statusBanner = msg;
   }
 
   open() {
@@ -54,6 +59,10 @@ export class AdminPanelUI {
     `;
 
     this.modalRoot.querySelector('#adm-close')?.addEventListener('click', () => this.close());
+    this.modalRoot.querySelector('#adm-dismiss-status')?.addEventListener('click', () => {
+      this.statusBanner = '';
+      this.renderDashboard();
+    });
     this.modalRoot.querySelector('#adm-login-form')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const val = this.modalRoot.querySelector('#adm-pass').value.trim();
@@ -100,6 +109,12 @@ export class AdminPanelUI {
 
           <!-- 內容 -->
           <div id="adm-body" class="flex-1 overflow-y-auto p-5 space-y-5">
+            ${this.statusBanner ? `
+              <div class="px-4 py-2.5 rounded-2xl bg-[#ECFDF5] border-2 border-[#10B981] text-[#065F46] text-xs sm:text-sm font-black flex items-center justify-between gap-2 animate-fade-in">
+                <span>✅ ${this._esc(this.statusBanner)}</span>
+                <button id="adm-dismiss-status" type="button" class="text-[#047857] hover:underline text-xs font-bold">關閉</button>
+              </div>
+            ` : ''}
             ${this.activeTab === 'bulletin' ? this._renderBulletinTab(bulletin) : ''}
             ${this.activeTab === 'taisui' ? this._renderTaiSuiTab(taisui) : ''}
             ${this.activeTab === 'system' ? this._renderSystemTab() : ''}
@@ -109,6 +124,10 @@ export class AdminPanelUI {
     `;
 
     this.modalRoot.querySelector('#adm-close')?.addEventListener('click', () => this.close());
+    this.modalRoot.querySelector('#adm-dismiss-status')?.addEventListener('click', () => {
+      this.statusBanner = '';
+      this.renderDashboard();
+    });
     this.modalRoot.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         this.activeTab = btn.getAttribute('data-tab');
@@ -197,8 +216,17 @@ export class AdminPanelUI {
   }
 
   _bindBulletinEvents(bulletin) {
+    const syncScope = storageSync.getCloudDbUrl() ? '並已同步至雲端資料庫（全站即時生效）' : '（已存於本機；若要同步給所有線上訪客，請至「系統與資料備份」填入 Firebase 網址）';
+    const safeClone = () => {
+      const next = structuredClone(bulletin || {});
+      next.announcements = Array.isArray(next.announcements) ? next.announcements : [];
+      next.donors = Array.isArray(next.donors) ? next.donors : [];
+      next.construction = next.construction || { percent: 72, stage: '', targetDate: '', note: '' };
+      return next;
+    };
+
     this.modalRoot.querySelector('#adm-save-const')?.addEventListener('click', () => {
-      const next = structuredClone(bulletin);
+      const next = safeClone();
       next.construction = {
         percent: Math.min(100, Math.max(0, Number(this.modalRoot.querySelector('#adm-const-pct').value) || 0)),
         targetDate: this.modalRoot.querySelector('#adm-const-date').value.trim(),
@@ -207,13 +235,14 @@ export class AdminPanelUI {
       };
       storageSync.updateBulletin(next);
       soundEngine.playBlessingChime();
+      this._flashStatus(`建廟進度（${next.construction.percent}%）已儲存${syncScope}`);
       if (this.onDataChanged) this.onDataChanged('bulletin');
       this.renderDashboard();
     });
 
     this.modalRoot.querySelector('#adm-add-ann')?.addEventListener('submit', (e) => {
       e.preventDefault();
-      const next = structuredClone(bulletin);
+      const next = safeClone();
       next.announcements.unshift({
         id: `ann-${Date.now()}`,
         tag: this.modalRoot.querySelector('#ann-tag').value.trim() || '公告',
@@ -223,6 +252,7 @@ export class AdminPanelUI {
       });
       storageSync.updateBulletin(next);
       soundEngine.playSoftClick();
+      this._flashStatus(`已新增最新公告${syncScope}`);
       if (this.onDataChanged) this.onDataChanged('bulletin');
       this.renderDashboard();
     });
@@ -230,9 +260,10 @@ export class AdminPanelUI {
     this.modalRoot.querySelectorAll('[data-del-ann]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-del-ann');
-        const next = structuredClone(bulletin);
+        const next = safeClone();
         next.announcements = next.announcements.filter(a => a.id !== id);
         storageSync.updateBulletin(next);
+        this._flashStatus(`已刪除該則公告${syncScope}`);
         if (this.onDataChanged) this.onDataChanged('bulletin');
         this.renderDashboard();
       });
@@ -240,7 +271,7 @@ export class AdminPanelUI {
 
     this.modalRoot.querySelector('#adm-add-donor')?.addEventListener('submit', (e) => {
       e.preventDefault();
-      const next = structuredClone(bulletin);
+      const next = safeClone();
       next.donors.unshift({
         id: `d-${Date.now()}`,
         name: this.modalRoot.querySelector('#donor-name').value.trim(),
@@ -250,6 +281,7 @@ export class AdminPanelUI {
       });
       storageSync.updateBulletin(next);
       soundEngine.playSoftClick();
+      this._flashStatus(`已新增捐款芳名${syncScope}`);
       if (this.onDataChanged) this.onDataChanged('bulletin');
       this.renderDashboard();
     });
@@ -257,9 +289,10 @@ export class AdminPanelUI {
     this.modalRoot.querySelectorAll('[data-del-donor]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-del-donor');
-        const next = structuredClone(bulletin);
+        const next = safeClone();
         next.donors = next.donors.filter(d => d.id !== id);
         storageSync.updateBulletin(next);
+        this._flashStatus(`已移除該筆芳名${syncScope}`);
         if (this.onDataChanged) this.onDataChanged('bulletin');
         this.renderDashboard();
       });
@@ -310,15 +343,15 @@ export class AdminPanelUI {
 
       const count = storageSync.batchImportTaiSui(parsed);
       soundEngine.playBlessingChime();
+      this._flashStatus(`已成功批次匯入 ${count} 位信眾至紅紙太歲牆！`);
       if (this.onDataChanged) this.onDataChanged('taisui');
       this.renderDashboard();
-      const msgEl = this.modalRoot.querySelector('#adm-ts-msg');
-      if (msgEl) msgEl.textContent = `✓ 已成功匯入 ${count} 位信眾至紅紙太歲牆！`;
     });
 
     this.modalRoot.querySelectorAll('[data-del-ts]').forEach(btn => {
       btn.addEventListener('click', () => {
         storageSync.removeTaiSuiEntry(btn.getAttribute('data-del-ts'));
+        this._flashStatus('已從紅紙太歲牆移除該筆名單！');
         if (this.onDataChanged) this.onDataChanged('taisui');
         this.renderDashboard();
       });
@@ -326,14 +359,29 @@ export class AdminPanelUI {
   }
 
   _renderSystemTab() {
+    const dbUrl = storageSync.getCloudDbUrl();
     return `
-      <section class="bg-white rounded-2xl border border-[#E5D3B3] p-4 space-y-3 text-sm">
-        <h3 class="font-bold text-base text-[#8E1B1B]">⚙️ 廟務維護與未來升級工具</h3>
-        <p class="text-xs text-[#6B4E3D]">
-          目前連線模式：<strong>${storageSync.getSyncModeLabel()}</strong>。<br>
-          未來新廟落成後，可將 <code>src/config/templeConfig.js</code> 與匯出的 JSON 設定檔一併提供給 AI，即可保留所有資料並升級 3D 廟宇外觀！
+      <section class="bg-[#FFF8E7] rounded-2xl border-2 border-[#D97706] p-4 space-y-3 text-sm">
+        <h3 class="font-bold text-base text-[#8E1B1B]">☁️ 線上版跨裝置多人連線＆雲端儲存設定（GitHub Pages 必備）</h3>
+        <p class="text-xs text-[#4A2210] leading-relaxed">
+          目前狀態：<strong>${this._esc(storageSync.getSyncModeLabel())}</strong><br>
+          GitHub Pages 為純靜態網站，若要讓不同手機／電腦的香客<strong>即時看到彼此走動、多人即時聊天、並讓管理者儲存的公佈欄／太歲名單同步給所有訪客</strong>，只需免費建立一個 Google Firebase Realtime Database，將網址貼入下方即可立即啟用（也可直接寫入 <code>src/config/firebaseConfig.js</code> 永久生效）！
         </p>
-        <div class="flex flex-wrap gap-2 pt-2">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input id="adm-cloud-url" type="url" value="${this._esc(dbUrl)}"
+            placeholder="貼上 Firebase 網址，例：https://your-temple-default-rtdb.asia-southeast1.firebasedatabase.app"
+            class="flex-1 px-3 py-2 rounded-xl bg-white border-2 border-[#D49B35] text-xs font-mono text-[#183C32]" />
+          <button id="adm-test-cloud" type="button"
+            class="px-4 py-2 rounded-xl bg-[#183C32] hover:bg-[#235245] text-[#FFFBF2] text-xs font-black whitespace-nowrap">
+            ☁️ 測試並啟用雲端同步
+          </button>
+        </div>
+        <div id="adm-cloud-msg" class="text-xs font-bold text-[#183C32]"></div>
+      </section>
+
+      <section class="bg-white rounded-2xl border border-[#E5D3B3] p-4 space-y-3 text-sm">
+        <h3 class="font-bold text-base text-[#8E1B1B]">⚙️ 廟務維護與資料備份</h3>
+        <div class="flex flex-wrap gap-2 pt-1">
           <button id="adm-export-json" class="px-4 py-2 rounded-xl bg-[#D97706] text-white text-xs font-bold">📥 匯出完整 JSON 資料備份</button>
           <button id="adm-clear-offerings" class="px-4 py-2 rounded-xl bg-[#78350F] text-white text-xs font-bold">🧹 立即整理清空供桌</button>
           <button id="adm-reset-defaults" class="px-4 py-2 rounded-xl bg-red-700 text-white text-xs font-bold">↺ 還原預設示範資料</button>
@@ -343,6 +391,28 @@ export class AdminPanelUI {
   }
 
   _bindSystemEvents() {
+    this.modalRoot.querySelector('#adm-test-cloud')?.addEventListener('click', async () => {
+      const inp = this.modalRoot.querySelector('#adm-cloud-url');
+      const msgEl = this.modalRoot.querySelector('#adm-cloud-msg');
+      const val = inp?.value.trim() || '';
+      if (!val) {
+        storageSync.setCloudDbUrl('');
+        this._flashStatus('已清除雲端資料庫設定，切回本機模式');
+        this.renderDashboard();
+        return;
+      }
+      if (msgEl) msgEl.textContent = '⏳ 正在連線測試 Firebase Realtime Database...';
+      const res = await storageSync.testCloudDbConnection(val);
+      if (res.ok) {
+        soundEngine.playBlessingChime();
+        this._flashStatus(res.message);
+        this.renderDashboard();
+      } else if (msgEl) {
+        msgEl.className = 'text-xs font-bold text-[#B91C1C]';
+        msgEl.textContent = '❌ ' + res.message;
+      }
+    });
+
     this.modalRoot.querySelector('#adm-export-json')?.addEventListener('click', () => {
       const json = storageSync.exportAllData();
       const blob = new Blob([json], { type: 'application/json;charset=utf-8' });

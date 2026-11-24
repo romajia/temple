@@ -10,7 +10,7 @@ import { ChibiAvatar } from './chibiAvatar.js';
 const NPC_CHANT_BUBBLES = [
   '南無觀世音菩薩🙏',
   '心無罣礙，平安自在✨',
-  '五府千歲保佑闔家安康🙏',
+  '五年千歲保佑闔家安康🙏',
   '敲敲木魚靜心真舒服～'
 ];
 
@@ -209,18 +209,21 @@ export class TempleNPCManager {
     npc.avatar.setState('idle');
   }
 
-  update(dt, elapsed, playerPos) {
+  update(dt, elapsed, playerPos, realPlayerCount = 1) {
+    const allowNpcChatter = realPlayerCount <= 1;
     for (const npc of this.npcs) {
       const pos = npc.avatar.root.position;
 
-      // 氣泡展示
-      npc.bubbleCooldown -= dt;
-      if (npc.bubbleCooldown <= 0) {
-        npc.bubbleCooldown = 10 + Math.random() * 11;
-        if (!npc.avatar.bubbleSprite) {
-          const pool = npc.isKneelingOnMat ? NPC_CHANT_BUBBLES : (npc.config.bubbleLines || []);
-          if (pool.length > 0) {
-            npc.avatar.showSpeechBubble(pool[Math.floor(Math.random() * pool.length)], 3.8);
+      // ★ 需求 #3：多人上線（> 1 位真人）時不主動觸發 NPC 對話氣泡，讓真人互動更清爽；單人時由 NPC 親切互動！
+      if (allowNpcChatter) {
+        npc.bubbleCooldown -= dt;
+        if (npc.bubbleCooldown <= 0) {
+          npc.bubbleCooldown = 10 + Math.random() * 11;
+          if (!npc.avatar.bubbleSprite) {
+            const pool = npc.isKneelingOnMat ? NPC_CHANT_BUBBLES : (npc.config.bubbleLines || []);
+            if (pool.length > 0) {
+              npc.avatar.showSpeechBubble(pool[Math.floor(Math.random() * pool.length)], 3.8);
+            }
           }
         }
       }

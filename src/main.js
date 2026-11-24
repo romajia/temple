@@ -121,11 +121,11 @@ async function initApp() {
       return;
     }
 
-    // 1.5 廟旁樹蔭下加設長板凳 → 坐下乘涼聊天！
+    // 1.5 廟旁樹蔭下加設長板凳 → 坐下乘涼並直接從底部統一「紀錄」抽屜彈開聊天！
     if (target.type === 'sideBench') {
       sceneCtrl.setPlayerSitOnBench(target.bench);
-      benchChatUI.open();
-      rpgNarrator.showFloatingBanner(`已坐上【${target.title}】，在樹蔭下跟同場香客輕鬆聊聊吧！`, '🪑', 3600);
+      worldChatBar.enterBenchMode(target.title || '樹蔭板凳聊天');
+      rpgNarrator.showFloatingBanner(`已坐上【${target.title}】，聊天已整合於下方「紀錄」抽屜，隨時可收合或起身喔！`, '🪑', 3400);
       return;
     }
 
@@ -184,17 +184,18 @@ async function initApp() {
         break;
       case 'bench':
         sceneCtrl.setPlayerSitOnBench();
-        benchChatUI.open();
-        rpgNarrator.showFloatingBanner('已坐上廟前大榕樹木頭板凳，歡迎喝杯奉茶跟大家聊天！', '🪑', 3600);
+        worldChatBar.enterBenchMode('大榕樹板凳聊天');
+        rpgNarrator.showFloatingBanner('已坐上廟前大榕樹木頭板凳，聊天已整合於下方「紀錄」抽屜喔！', '🪑', 3400);
         break;
     }
   };
 
-  // 1. 初始化 RPG 劇情引導與底部即時聊天條
+  // 1. 初始化 RPG 劇情引導與底部統一即時聊天紀錄（整合廟埕＋板凳聊天！）
   updatePlayerHud();
   rpgNarrator = new RPGNarratorUI(rpgRoot);
   worldChatBar = new WorldChatBarUI(worldChatRoot, {
-    onSpeak: (text) => sceneCtrl.showPlayerBubble(text)
+    onSpeak: (text) => sceneCtrl.showPlayerBubble(text),
+    onStandUp: () => sceneCtrl.standUpPlayer()
   });
 
   // 2. 分階段非同步初始化 3D 新廟場景（即時回報載入進度條，不卡頓、手機更流暢！）
@@ -214,10 +215,15 @@ async function initApp() {
     },
     onForcedStandUp: () => {
       if (benchChatUI?.isOpen) benchChatUI.close();
+      worldChatBar?.exitBenchMode?.();
       if (modalsUI?.chantActive) modalsUI.stopChantingMode(false);
       soundEngine.setMusicDucking(1.0);
     },
     onBroadcastPresence: (pose) => storageSync.broadcastPresence(pose),
+    onIndoorStateChange: (isIndoor) => {
+      const exitBtn = document.getElementById('btn-exit-hall');
+      if (exitBtn) exitBtn.classList.toggle('hidden', !isIndoor);
+    },
     onWebGLContextLost: () => {
       window.__showTempleLoaderError?.(
         '手機 3D 畫面記憶體暫時重置',
@@ -314,7 +320,7 @@ async function initApp() {
     },
     onWorshipMainDeity: () => {
       sceneCtrl.setPlayerHoldingIncense(true);
-      showToast('🙏 立於中央大道虔誠三拜五府千歲、觀音佛祖、天上聖母並上前插香…', 3400);
+      showToast('🙏 立於中央大道虔誠三拜代天巡狩五年千歲（盧千歲）、觀音佛祖、天上聖母並上前插香…', 3400);
       sceneCtrl.playMainDeityRitual(() => {
         playerStatus.hasIncense = false;
         storageSync.updatePlayer({ hasIncense: false });
@@ -324,7 +330,7 @@ async function initApp() {
     },
     onEnterChantMode: () => {
       soundEngine.setMusicDucking(0.22);
-      rpgNarrator.showFloatingBanner('已跪坐於拜墊上，配樂自動轉柔，敲木魚每 5 下自動累積 +5 功德並存檔！', '🪵', 4200);
+      rpgNarrator.showFloatingBanner('已跪坐於拜墊上，配樂自動轉柔，敲木魚每 5 下自動累積 +5 功德並存檔！', '📿', 4200);
     },
     onExitChantMode: () => {
       sceneCtrl.standUpPlayer();
@@ -464,10 +470,10 @@ async function initApp() {
     soundEngine.playSoftClick();
     sceneCtrl.zoomCameraStep(1.18);
   });
-  document.getElementById('btn-toggle-joy')?.addEventListener('click', () => {
+  document.getElementById('btn-exit-hall')?.addEventListener('click', () => {
     soundEngine.playSoftClick();
-    const shown = joyUI.toggleJoystick();
-    showToast(shown ? '🕹️ 已顯示左下角半透明虛擬搖桿' : '🕹️ 已隱藏虛擬搖桿');
+    sceneCtrl.walkOutsideHall();
+    showToast('🚶 正走出正殿回到廟埕廣場…');
   });
   document.getElementById('btn-admin-entry')?.addEventListener('click', () => {
     soundEngine.playSoftClick();
@@ -511,7 +517,7 @@ async function initApp() {
           ]
         : [
             `「${name}」，歡迎來到安定區港口里全新落成的「玉勅代天府德慈宮」！紅磚青斗石壁、豔紅琉璃瓦配寶藍燕尾脊、門前石獅子與右側假山瀑布池都已完工！`,
-            '用 WASD、方向鍵、搖桿或點擊地面走到發光光圈、拜墊或 NPC 旁，按下 [E] 鍵（或點右側按鈕）即可展開互動！',
+            '用 WASD、方向鍵或直接點擊地面走到發光光圈、拜墊或 NPC 旁，按下 [E] 鍵（或點右側按鈕）即可展開互動！',
             '廟埕左右有供品鋪老闆娘阿芬姊與挑戰攤關主阿哲熱情招呼，底部聊天框打字也會直接浮在您頭頂跟同場香客即時互動喔！'
           ];
 

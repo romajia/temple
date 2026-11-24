@@ -34,7 +34,9 @@ export class TempleSceneController {
 
     this.cameraMode = 'follow'; // 'follow' | 'closeup'
     this.godViewEnabled = false;
+    this.inIndoorView = false;
     this.activeCamPreset = 'front';
+    this._outdoorSavedOffset = new THREE.Vector3(...TEMPLE_CONFIG.camera.followOffset);
     this.koiFeedTimer = 0;
     this.koiFeedTarget = { x: -1.1, z: 0.2 };
     this.feedPellets = [];
@@ -392,6 +394,15 @@ export class TempleSceneController {
     return 0.03;
   }
 
+  _isObjectVisibleInHierarchy(obj) {
+    let cur = obj;
+    while (cur) {
+      if (cur.visible === false) return false;
+      cur = cur.parent;
+    }
+    return true;
+  }
+
   _handleCanvasClick(event) {
     if (this.player.isLockedInAction()) return;
 
@@ -402,10 +413,13 @@ export class TempleSceneController {
 
     const objHits = this.raycaster.intersectObjects(this.interactiveObjects, true);
     for (const hit of objHits) {
+      if (!this._isObjectVisibleInHierarchy(hit.object)) continue;
       let cur = hit.object;
       while (cur) {
         if (cur.userData && cur.userData.zoneId) {
-          if (cur.userData.zoneId === 'kneelMat') {
+          if (cur.userData.zoneId === 'exitDoor') {
+            this.walkOutsideHall();
+          } else if (cur.userData.zoneId === 'kneelMat') {
             this.walkToWorldPoint(hit.point.x, hit.point.z);
           } else if (cur.userData.zoneId === 'sideBench') {
             const sb = SIDE_BENCHES.find(b => b.id === cur.userData.benchId);
@@ -420,10 +434,134 @@ export class TempleSceneController {
     }
 
     const groundHits = this.raycaster.intersectObjects(this.walkableMeshes, true);
-    if (groundHits.length > 0) {
-      const pt = groundHits[0].point;
+    for (const hit of groundHits) {
+      if (!this._isObjectVisibleInHierarchy(hit.object)) continue;
+      const pt = hit.point;
+      // ★ 在屋內正面／左右視角點擊大門口紅毯或階梯區域，直接順暢走出正門回到廟埕！
+      if (this.inIndoorView && pt.z >= 6.8 && Math.abs(pt.x) <= 4.2) {
+        this.walkOutsideHall();
+        return;
+      }
       this.walkToWorldPoint(pt.x, pt.z);
+      return;
     }
+  }
+
+  _isPlayerInsideHall() {
+    if (!this.player) return false;
+    const p = this.player.root.position;
+    const hb = TEMPLE_CONFIG.hallBounds;
+    // 加入平順遲滯區間：走到大門台階外緣 (z > 8.7) 立即切回廟外全景，避免卡門檻！
+    const zMax = this.inIndoorView ? 8.70 : 8.35;
+    const xPad = this.inIndoorView ? 0.35 : -0.05;
+    return p.x >= hb.minX - xPad && p.x <= hb.maxX + xPad && p.z >= hb.minZ - 0.3 && p.z <= zMax;
+  }
+
+  _getIndoorTargetForPlayer(p) {
+    return new THREE.Vector3(
+      THREE.MathUtils.clamp(p.x * 0.42, -4.2, 4.2),
+      1.85,
+      THREE.MathUtils.clamp(p.z - 3.6, -8.8, 0.4)
+    );
+  }
+
+  _getIndoorOffset(presetName = 'front') {
+    if (presetName === 'left') return new THREE.Vector3(-9.8, 8.0, 7.6);
+    if (presetName === 'right') return new THREE.Vector3(9.8, 8.0, 7.6);
+    return this.isMobileDevice
+      ? new THREE.Vector3(0, 10.6, 13.4)
+      : new THREE.Vector3(0, 8.6, 12.2);
+  }
+
+  /**
+   * ★ 核心視角與屋頂控制（需求 #2 & #3）：
+   *   1. 上帝視角或進入屋內時，直接以 roofGroups.visible = false 徹底隱藏屋頂（手機／桌機 100% 不殘留！）
+   *   2. 進入大殿屋內（非上帝視角）時，自動切換為「純屋內視角」：隱藏廟外景觀、外牆門面與廟外 NPC，鏡頭專注呈現殿內全景！
+   */
+  _syncIndoorAndRoofVisibility() {
+    if (!this.refs || !this.player) return;
+    const insideHall = this._isPlayerInsideHall();
+    const hideRoof = this.godViewEnabled || insideHall;
+
+    (this.refs.roofGroups || []).forEach((g) => {
+      if (g) g.visible = !hideRoof;
+    });
+
+    const wantIndoor = insideHall && !this.godViewEnabled;
+    if (wantIndoor !== this.inIndoorView) {
+      this.inIndoorView = wantIndoor;
+
+      if (this.refs.exteriorGroup) this.refs.exteriorGroup.visible = !wantIndoor;
+      // ★ 保留大門正面牆（frontFacadeGroup 永遠保持可見，絕不讓「點此走出大門」那片牆消失！）
+      if (this.refs.frontFacadeGroup) this.refs.frontFacadeGroup.visible = true;
+      if (this.refs.indoorExitGroup) this.refs.indoorExitGroup.visible = wantIndoor;
+      this.atmosphere?.setIndoorMode?.(wantIndoor);
+
+      if (wantIndoor) {
+        if (this.cameraMode === 'follow' && !this.godViewEnabled) {
+          this._outdoorSavedOffset.copy(this.camera.position).sub(this.controls.target);
+          if (this._outdoorSavedOffset.length() < 10) {
+            this._outdoorSavedOffset.set(...TEMPLE_CONFIG.camera.followOffset);
+          }
+        }
+        this.controls.minDistance = 5.5;
+        this.controls.maxDistance = 18.5;
+        const p = this.player.root.position;
+        const indoorTarget = this._getIndoorTargetForPlayer(p);
+        const indoorOffset = this._getIndoorOffset(this.activeCamPreset === 'god' ? 'front' : this.activeCamPreset);
+        this.savedFollowOffset.copy(indoorOffset);
+        if (this.cameraMode === 'follow') {
+          this.closeupGoal = {
+            pos: indoorTarget.clone().add(indoorOffset),
+            target: indoorTarget,
+            releaseOnDone: true
+          };
+        }
+      } else {
+        this.controls.minDistance = TEMPLE_CONFIG.camera.minDistance;
+        this.controls.maxDistance = TEMPLE_CONFIG.camera.maxDistance;
+        // 恢復所有 NPC 與線上玩家可見度
+        this._syncNPCIndoorVisibility(false);
+        if (!this.godViewEnabled && this.cameraMode === 'follow') {
+          const p = this.player.root.position;
+          const outTarget = new THREE.Vector3(p.x, p.y + 1.35, p.z);
+          this.savedFollowOffset.copy(this._outdoorSavedOffset);
+          this.closeupGoal = {
+            pos: outTarget.clone().add(this._outdoorSavedOffset),
+            target: outTarget,
+            releaseOnDone: true
+          };
+        }
+      }
+      this.callbacks.onIndoorStateChange?.(wantIndoor);
+    }
+
+    if (this.inIndoorView) {
+      this._syncNPCIndoorVisibility(true);
+    }
+  }
+
+  _syncNPCIndoorVisibility(indoorOnly) {
+    if (!this.npcManager) return;
+    const hb = TEMPLE_CONFIG.hallBounds;
+    const isIn = (pos) => pos.x >= hb.minX - 0.5 && pos.x <= hb.maxX + 0.5 && pos.z >= hb.minZ - 0.5 && pos.z <= hb.maxZ + 0.5;
+    (this.npcManager.npcs || []).forEach((n) => {
+      if (n.avatar?.root) {
+        n.avatar.root.visible = indoorOnly ? isIn(n.avatar.root.position) : true;
+      }
+    });
+    if (this.npcManager.remotePeers) {
+      for (const entry of this.npcManager.remotePeers.values()) {
+        if (entry.avatar?.root) {
+          entry.avatar.root.visible = indoorOnly ? isIn(entry.avatar.root.position) : true;
+        }
+      }
+    }
+  }
+
+  walkOutsideHall() {
+    this.godViewEnabled = false;
+    this.walkToWorldPoint(0, 12.2);
   }
 
   setDayNightMode(mode) { this.atmosphere.setMode(mode); }
@@ -434,14 +572,43 @@ export class TempleSceneController {
    */
   setCameraPreset(presetName = 'front') {
     const presets = TEMPLE_CONFIG.camera.presets || {};
-    const arr = presets[presetName] || TEMPLE_CONFIG.camera.followOffset;
     this.activeCamPreset = presetName;
     this.godViewEnabled = presetName === 'god';
+    this._syncIndoorAndRoofVisibility();
 
     const p = this.player.root.position;
+    this.cameraMode = 'follow';
+
+    if (this.godViewEnabled) {
+      const godOffset = this.isMobileDevice
+        ? new THREE.Vector3(0, 48.0, 16.0)
+        : new THREE.Vector3(...(presets.god || TEMPLE_CONFIG.camera.godViewOffset));
+      const godTarget = new THREE.Vector3(0, 1.0, 1.5);
+      this.savedFollowOffset.copy(godOffset);
+      this.closeupGoal = {
+        pos: godTarget.clone().add(godOffset),
+        target: godTarget,
+        releaseOnDone: true
+      };
+      return presetName;
+    }
+
+    if (this.inIndoorView) {
+      const indoorOffset = this._getIndoorOffset(presetName);
+      const indoorTarget = this._getIndoorTargetForPlayer(p);
+      this.savedFollowOffset.copy(indoorOffset);
+      this.closeupGoal = {
+        pos: indoorTarget.clone().add(indoorOffset),
+        target: indoorTarget,
+        releaseOnDone: true
+      };
+      return presetName;
+    }
+
+    const arr = presets[presetName] || TEMPLE_CONFIG.camera.followOffset;
     const offset = new THREE.Vector3(...arr);
     this.savedFollowOffset.copy(offset);
-    this.cameraMode = 'follow';
+    this._outdoorSavedOffset.copy(offset);
     this.closeupGoal = {
       pos: new THREE.Vector3(p.x, p.y + 1.35, p.z).add(offset),
       target: new THREE.Vector3(p.x, p.y + 1.35, p.z),
@@ -935,8 +1102,9 @@ export class TempleSceneController {
     if (!this.occludeGroupMaterials) return;
     for (const [gid, matSet] of this.occludeGroupMaterials.entries()) {
       const isRoof = gid === 'roof-front' || gid === 'roof-main';
-      const fadeLevel = isRoof ? 0.13 : 0.16;
-      const isHit = hitGroups.has(gid);
+      const isFrontDoorWall = gid === 'facade-front';
+      const fadeLevel = isRoof ? 0.13 : (isFrontDoorWall && this.inIndoorView ? 0.34 : 0.18);
+      const isHit = hitGroups.has(gid) || (isFrontDoorWall && this.inIndoorView && this.camera.position.z > 8.1);
       for (const mat of matSet) {
         const baseOp = mat.userData?.baseOpacity ?? 1.0;
         const baseTransparent = Boolean(mat.userData?.baseTransparent);
@@ -952,6 +1120,7 @@ export class TempleSceneController {
         const needTransparent = baseTransparent || mat.opacity < 0.985;
         if (mat.transparent !== needTransparent) {
           mat.transparent = needTransparent;
+          mat.needsUpdate = true;
         }
         mat.depthWrite = !needTransparent || mat.opacity > 0.85;
       }
@@ -1184,7 +1353,9 @@ export class TempleSceneController {
       this.camera.position.y += dy;
       this.camera.position.z += dz;
 
-      const desiredTarget = new THREE.Vector3(pos.x, pos.y + 1.35, pos.z);
+      const desiredTarget = this.inIndoorView
+        ? this._getIndoorTargetForPlayer(pos)
+        : new THREE.Vector3(pos.x, pos.y + 1.35, pos.z);
       const tDiff = desiredTarget.clone().sub(this.controls.target);
       const followK = Math.min(1, dt * 8);
       this.controls.target.addScaledVector(tDiff, followK);
@@ -1208,13 +1379,14 @@ export class TempleSceneController {
     const elapsed = this.clock.elapsedTime;
 
     this._updatePlayerMovement(dt);
+    this._syncIndoorAndRoofVisibility();
     this._updateProximityCheck();
     this._updateCamera(dt);
     this._updateWallOcclusion(dt);
     this.atmosphere.update(dt, elapsed);
 
     this.player.update(dt, elapsed);
-    this.npcManager.update(dt, elapsed, this.player.root.position);
+    this.npcManager.update(dt, elapsed, this.player.root.position, 1 + this.npcManager.remotePeers.size);
 
     this.presenceTimer += dt;
     if (this.presenceTimer >= 0.15) {

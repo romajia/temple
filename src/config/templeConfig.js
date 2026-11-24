@@ -256,7 +256,7 @@ export const SIDE_BENCHES = [
 export const TEMPLE_CONFIG = {
   templeName: '玉勅代天府德慈宮',
   shortName: '德慈宮',
-  subtitle: '代天巡狩・五府千歲・觀音佛祖・天上聖母',
+  subtitle: '代天巡狩・五年千歲・觀音佛祖・天上聖母',
   plaqueText: '玉勅代天府德慈宮',
   couplets: {
     right: '神威顯赫德配代天巡九洲',
@@ -264,7 +264,7 @@ export const TEMPLE_CONFIG = {
     top: '神威顯赫'
   },
   deities: [
-    { id: 'wufu', name: '代天巡狩・五府千歲', robeColor: '#C4312C', trimColor: '#E8B84B', crownType: 'king', xOffset: 0, scale: 1.32 },
+    { id: 'wufu', name: '代天巡狩・五年千歲（盧千歲）', robeColor: '#C4312C', trimColor: '#E8B84B', crownType: 'king', xOffset: 0, scale: 1.32 },
     { id: 'guanyin', name: '觀音佛祖', robeColor: '#FBF7EE', trimColor: '#E5B968', crownType: 'lotus', xOffset: -2.2, scale: 1.12 },
     { id: 'mazu', name: '天上聖母', robeColor: '#D97724', trimColor: '#F7D060', crownType: 'phoenix', xOffset: 2.2, scale: 1.12 }
   ],
@@ -484,9 +484,10 @@ export const TEMPLE_CONFIG = {
       mode: 'stationary',
       position: [-4.8, 0.03, 11.4],
       facing: 0.35,
-      bubbleLines: ['新廟紅瓦藍脊真宏偉！', '拜天公記得靠廟向外拜喔～', '右側還有假山瀑布池！'],
+      bubbleLines: ['新廟紅瓦藍脊真宏偉！', '五年千歲就是十二瘟王的盧千歲喔！', '拜天公記得靠廟向外拜喔～'],
       dialogues: [
         '歡迎來到安定區港口里「玉勅代天府德慈宮」全新落成大廟！您瞧瞧這前後兩進紅瓦燕尾、寶藍剪黏屋脊，屋頂正中央還立著福祿壽三仙呢！',
+        '跟您分享一個德慈宮神尊小知識：本宮主祀的「代天巡狩五年千歲」正是十二瘟王中的【盧千歲】喔！民間尊稱「盧千歲＝五年千歲＝十二瘟王＝代天巡狩千歲爺＝千歲爺＝代天巡狩＝王爺公」，指的都是同一位鎮殿王爺公！',
         '走進大殿正中央面向主神按 [E] 即可三拜插香，左邊案桌還安奉著威嚴的五營旗，左右兩側 36 個拜墊隨時都能走過去按 [E] 跪坐敲木魚！',
         '拜天公時記得站在靠廟這邊面向外面天際三拜，拜完直接向前把三柱香插進金色頂蓋天公爐喔！'
       ]
@@ -600,7 +601,7 @@ export const TEMPLE_CONFIG = {
         [-15.5, 12.0], [-16.5, -2.0], [-15.2, -16.5], [0, -16.2],
         [15.2, -16.0], [18.0, 10.5], [0, 7.0], [0, 1.0]
       ],
-      bubbleLines: ['繞廟散步再進殿坐坐～', '五府千歲保佑平安🙏', '天天來簽到賺功德！'],
+      bubbleLines: ['繞廟散步再進殿坐坐～', '五年千歲保佑平安🙏', '天天來簽到賺功德！'],
       dialogues: [
         '少年仔平安！阿公剛剛繞廟後面散步一圈，進大殿找個拜墊坐下念了幾句心經，整個人神清氣爽！',
         '記得右前方的民俗小挑戰每天有 6 道隨機題目，內容超豐富有趣，每天來玩一次賺功德喔！'

@@ -137,7 +137,14 @@ export function buildDeciTemple(scene, initialState = {}) {
     return obj;
   };
 
+  const exteriorGroup = new THREE.Group();
+  root.add(exteriorGroup);
+
   const animatedRefs = {
+    exteriorGroup,
+    roofGroups: [],
+    frontFacadeGroup: null,
+    indoorExitGroup: null,
     lanterns: [],
     lanternMaterials: [],
     waterfallStreams: [],
@@ -223,7 +230,7 @@ export function buildDeciTemple(scene, initialState = {}) {
 
   const organicLawn = createOrganicDioramaLawn(dioramaWidth, dioramaDepth);
   organicLawn.position.set(0, -0.02, dioramaCenterZ);
-  root.add(organicLawn);
+  exteriorGroup.add(organicLawn);
   walkableMeshes.push(organicLawn);
 
   const soilSlab = new THREE.Mesh(
@@ -231,14 +238,14 @@ export function buildDeciTemple(scene, initialState = {}) {
     new THREE.MeshStandardMaterial({ color: 0x7E5B42, roughness: 0.92 })
   );
   soilSlab.position.set(0, -0.60, dioramaCenterZ);
-  root.add(soilSlab);
+  exteriorGroup.add(soilSlab);
 
   const stoneBaseSlab = new THREE.Mesh(
     new THREE.BoxGeometry(dioramaWidth + 0.8, 0.98, dioramaDepth + 0.8),
     new THREE.MeshStandardMaterial({ color: 0x3D4C4E, roughness: 0.9 })
   );
   stoneBaseSlab.position.set(0, -1.65, dioramaCenterZ);
-  root.add(stoneBaseSlab);
+  exteriorGroup.add(stoneBaseSlab);
 
   const plazaTex = createPlazaTileTexture();
   plazaTex.repeat.set(10, 8);
@@ -248,7 +255,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   frontPlaza.position.set(-0.8, -0.02, 16.8);
   frontPlaza.receiveShadow = true;
   frontPlaza.userData.walkable = true;
-  root.add(frontPlaza);
+  exteriorGroup.add(frontPlaza);
   walkableMeshes.push(frontPlaza);
 
   // ★ 需求 #4：精雕花崗岩廣場緣石（讓磁磚廣場與綠草坪收邊更細緻整齊！）
@@ -260,7 +267,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     const curb = new THREE.Mesh(new THREE.BoxGeometry(cw, 0.19, cd), matStone);
     curb.position.set(cx, 0.01, cz);
     curb.receiveShadow = true;
-    root.add(curb);
+    exteriorGroup.add(curb);
   });
 
   // 園區周邊點綴細緻「台灣廟埕花叢（杜鵑紅／粉白花灌木）」
@@ -286,7 +293,7 @@ export function buildDeciTemple(scene, initialState = {}) {
       bush.add(fl);
     }
     bush.position.set(bx, -0.02, bz);
-    root.add(bush);
+    exteriorGroup.add(bush);
   });
 
   const pathMat = new THREE.MeshStandardMaterial({ color: 0xDDD0BE, roughness: 0.88 });
@@ -299,7 +306,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     p.position.set(px, -0.01, pz);
     p.receiveShadow = true;
     p.userData.walkable = true;
-    root.add(p);
+    exteriorGroup.add(p);
     walkableMeshes.push(p);
   });
 
@@ -314,7 +321,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     t.position.set(tx, -0.02, tz);
     t.scale.setScalar(sc);
     markOccludable(t);
-    root.add(t);
+    exteriorGroup.add(t);
   });
 
   // 柔雲
@@ -332,7 +339,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     c.position.set(x, y, z);
     c.scale.setScalar(s);
     c.userData.baseX = x;
-    root.add(c);
+    exteriorGroup.add(c);
     animatedRefs.clouds.push(c);
   });
 
@@ -389,6 +396,29 @@ export function buildDeciTemple(scene, initialState = {}) {
     root.add(step);
     walkableMeshes.push(step);
   }
+
+  // ★ 屋內視角專屬「大門出口引導光圈＋標牌」（僅在屋內視角顯示，正面/左右視角點大門即可順暢走出廟外！）
+  const indoorExitGroup = new THREE.Group();
+  indoorExitGroup.visible = false;
+  const exitPad = new THREE.Mesh(
+    new THREE.RingGeometry(0.95, 1.25, 32),
+    new THREE.MeshBasicMaterial({ color: 0x34D399, transparent: true, opacity: 0.85, side: THREE.DoubleSide, toneMapped: false })
+  );
+  exitPad.rotation.x = -Math.PI / 2;
+  exitPad.position.set(0, 0.39, 7.35);
+  const exitHitFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(5.6, 3.2),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0, side: THREE.DoubleSide })
+  );
+  exitHitFloor.rotation.x = -Math.PI / 2;
+  exitHitFloor.position.set(0, 0.395, 7.6);
+  const exitBadge = createZoneBadgeSprite('🚪 點此走出大門', '#10B981');
+  exitBadge.position.set(0, 1.55, 7.35);
+  indoorExitGroup.add(exitPad, exitHitFloor, exitBadge);
+  tagInteractive(indoorExitGroup, 'exitDoor');
+  root.add(indoorExitGroup);
+  interactiveObjects.push(indoorExitGroup);
+  animatedRefs.indoorExitGroup = indoorExitGroup;
 
   // ---- A. 紅磚三面牆體 ＋ 青斗石結構方柱 ＋ 水車堵藍紅彩繪帶 ＋ 白框方窗 ＋ 圓形青斗石窗 ----
   const backWallGroup = new THREE.Group();
@@ -648,6 +678,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   frontFacadeGroup.add(plaqueGroup);
 
   markOccludable(frontFacadeGroup, 'facade-front');
+  animatedRefs.frontFacadeGroup = frontFacadeGroup;
   root.add(frontFacadeGroup);
 
   // =========================================================================
@@ -673,6 +704,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   });
   frontRoofGroup.position.set(0, 0, 5.0);
   markOccludable(frontRoofGroup, 'roof-front');
+  animatedRefs.roofGroups.push(frontRoofGroup);
   root.add(frontRoofGroup);
 
   // --- 第二進：後方挑高正殿大屋頂 (z = -5.4，完全對齊後段紅磚側牆 z = -12.4..1.6！) ---
@@ -694,6 +726,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   });
   mainHallRoofGroup.position.set(0, 0, -5.4);
   markOccludable(mainHallRoofGroup, 'roof-main');
+  animatedRefs.roofGroups.push(mainHallRoofGroup);
   root.add(mainHallRoofGroup);
 
   // ★ 需求 #12：六盞精細宮廷絲綢大紅燈籠，往八仙彩兩側對稱移動（絕不遮擋八仙彩！）
@@ -701,7 +734,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   [[-8.4, 5.82, 8.85], [-6.4, 5.82, 8.85], [-4.45, 5.82, 8.85], [4.45, 5.82, 8.85], [6.4, 5.82, 8.85], [8.4, 5.82, 8.85]].forEach(([lx, ly, lz]) => {
     const { group: lantern, bodyMat } = createRedLantern(lanternSilkTex);
     lantern.position.set(lx, ly, lz);
-    root.add(lantern);
+    exteriorGroup.add(lantern);
     animatedRefs.lanterns.push(lantern);
     animatedRefs.lanternMaterials.push(bodyMat);
   });
@@ -711,7 +744,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     const lion = createStoneLionGuardian(lx < 0 ? 1 : -1);
     lion.position.set(lx, 0.03, 10.1);
     markOccludable(lion);
-    root.add(lion);
+    exteriorGroup.add(lion);
   });
 
   // =========================================================================
@@ -1024,7 +1057,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   tiangongGroup.add(tgPedestal, tgPedRim, tgCenser, animatedRefs.tiangongIncenseGroup);
   tagInteractive(tiangongGroup, 'tiangong');
   markOccludable(tiangongGroup, 'tiangong-censer');
-  root.add(tiangongGroup);
+  exteriorGroup.add(tiangongGroup);
   interactiveObjects.push(tiangongGroup);
 
   const benchArea = new THREE.Group();
@@ -1044,7 +1077,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   markOccludable(banyan, 'banyan-tree');
   benchArea.add(bench1, bench2, teaTable, teapot, banyan);
   tagInteractive(benchArea, 'bench');
-  root.add(benchArea);
+  exteriorGroup.add(benchArea);
   interactiveObjects.push(benchArea);
 
   // ★ 需求 #5：公佈欄移至母獅（10.1, 10.1）左側（6.7, 11.55），燒金紙動線與鏡頭完全無遮擋！
@@ -1068,7 +1101,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   bulletinGroup.add(boardBox, boardFace, boardRoof);
   tagInteractive(bulletinGroup, 'bulletin');
   markOccludable(bulletinGroup, 'bulletin-board');
-  root.add(bulletinGroup);
+  exteriorGroup.add(bulletinGroup);
   interactiveObjects.push(bulletinGroup);
 
   // ★ 需求 #3：精確八角對齊「三層燕尾寶塔金爐」—— 八根朱紅金柱精準立於八角邊角、較小勻稱的石雕爐口窗正置於前左平牆面正中央！
@@ -1224,7 +1257,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   furnaceGroup.add(fBase1, fBase2, fBody, fFrieze, hearthGroup, hearthLight, tier1, neck1, tier2, neck2, tier3, gourdBot, gourdTop, spire);
   tagInteractive(furnaceGroup, 'furnace');
   markOccludable(furnaceGroup, 'pagoda-furnace');
-  root.add(furnaceGroup);
+  exteriorGroup.add(furnaceGroup);
   interactiveObjects.push(furnaceGroup);
 
   const shopStall = createCulturalStall(0xD97706, 0xFFF3D6, true);
@@ -1232,7 +1265,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   shopStall.rotation.y = Math.PI / 2;
   tagInteractive(shopStall, 'offeringShop');
   markOccludable(shopStall, 'shop-stall');
-  root.add(shopStall);
+  exteriorGroup.add(shopStall);
   interactiveObjects.push(shopStall);
 
   const quizStall = createCulturalStall(0x0D9488, 0xFFF3D6, false);
@@ -1240,7 +1273,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   quizStall.rotation.y = -Math.PI / 2;
   tagInteractive(quizStall, 'quizBooth');
   markOccludable(quizStall, 'quiz-stall');
-  root.add(quizStall);
+  exteriorGroup.add(quizStall);
   interactiveObjects.push(quizStall);
 
   // =========================================================================
@@ -1249,7 +1282,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   const waterfallScenic = buildRockeryWaterfallPond(animatedRefs, markOccludable);
   waterfallScenic.position.set(20.8, 0.03, 15.2);
   tagInteractive(waterfallScenic, 'fishPond');
-  root.add(waterfallScenic);
+  exteriorGroup.add(waterfallScenic);
   interactiveObjects.push(waterfallScenic);
 
   // ★ 需求 #2：於廟宇左右與後方樹蔭下增設 5 座古色古香有靠背長板凳，信徒四處可坐下聊天！
@@ -1264,7 +1297,7 @@ export function buildDeciTemple(scene, initialState = {}) {
       ch.userData.benchId = b.id;
     });
     markOccludable(benchMesh);
-    root.add(benchMesh);
+    exteriorGroup.add(benchMesh);
     interactiveObjects.push(benchMesh);
   });
 
@@ -1274,7 +1307,7 @@ export function buildDeciTemple(scene, initialState = {}) {
   rearTeaTable.castShadow = true;
   const rearTeapot = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 10), new THREE.MeshStandardMaterial({ color: 0x8D442C, roughness: 0.62 }));
   rearTeapot.position.set(0, 0.78, -19.5);
-  root.add(rearTeaTable, rearTeapot);
+  exteriorGroup.add(rearTeaTable, rearTeapot);
 
   // =========================================================================
   // 9. 互動標記光圈與高對比懸浮牌
@@ -1308,7 +1341,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     ring.position.set(z.standPos[0], groundY, z.standPos[2]);
     ring.userData.baseColor = new THREE.Color(z.color);
     tagInteractive(ring, z.id);
-    root.add(ring);
+    (isInside ? root : exteriorGroup).add(ring);
     interactiveObjects.push(ring);
     animatedRefs.zoneRings.set(z.id, ring);
 
@@ -1316,7 +1349,7 @@ export function buildDeciTemple(scene, initialState = {}) {
     badge.position.set(zx, badgeHeights[z.id] || 2.6, zz);
     badge.userData.baseY = badge.position.y;
     tagInteractive(badge, z.id);
-    root.add(badge);
+    (isInside ? root : exteriorGroup).add(badge);
     interactiveObjects.push(badge);
     animatedRefs.zoneBadges.set(z.id, badge);
   });
@@ -2207,7 +2240,7 @@ function createAuthenticPhotoDeity(variant) {
     metalness: 0.28
   });
   const sashMatLeft = new THREE.MeshStandardMaterial({
-    map: createDeitySashTexture('鎮安宮五府千歲祖廟'),
+    map: createDeitySashTexture('鎮安宮五年千歲祖廟'),
     roughness: 0.46
   });
   const sashMatRight = new THREE.MeshStandardMaterial({
@@ -2403,7 +2436,7 @@ function createAuthenticPhotoDeity(variant) {
     }
     g.add(robe, cape, waistBelt, head, crownBaseRing, crownRim, crownTier2, crownTop, topPearl, phoenixArch, crownJewel, phoenixHead);
   } else if (variant === 'centerKing') {
-    // ---- 中尊（代天巡狩五府千歲：立體木雕神容、橘金刺繡龍袍戰甲、金龍吞口甲、極繁 10 紅絨球帝王通天戰冠！）----
+    // ---- 中尊（代天巡狩五年千歲・盧千歲：立體木雕神容、橘金刺繡龍袍戰甲、金龍吞口甲、極繁 10 紅絨球帝王通天戰冠！）----
     const armor = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.49, 1.00, 18), robeMat);
     armor.position.set(0, 1.08, 0.08);
     armor.rotation.y = Math.PI;
@@ -2472,7 +2505,7 @@ function createAuthenticPhotoDeity(variant) {
     }
     g.add(armor, chestPlate, chestRuby, jadeBelt, face, goatee, crownBand, crown, crownFrontPlaque, plaqueRuby, crownTier2, crownCrest, crownFlameGem);
   } else {
-    // ---- 右尊（五府千歲黑髯王爺公：明顯立體木雕開面、極繁五龍寶石王爺相帽、層次長黑髯、兩大串巨型檀木念珠＋座下復古肖像畫框！）----
+    // ---- 右尊（五年千歲黑髯王爺公：明顯立體木雕開面、極繁五龍寶石王爺相帽、層次長黑髯、兩大串巨型檀木念珠＋座下復古肖像畫框！）----
     const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.58, 1.24, 20), robeMat);
     robe.position.set(0, 1.20, 0.04);
     robe.rotation.y = Math.PI;

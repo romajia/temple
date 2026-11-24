@@ -153,7 +153,7 @@ export class TaiSuiWallUI {
                 <div>
                   <label class="block text-xs font-bold text-[#4A2210] mb-1">祈福心願</label>
                   <textarea id="ts-input-wish" rows="3" maxlength="50"
-                    placeholder="例：祈求五府千歲保佑闔家身體健康、公司生意興隆、出入平安"
+                    placeholder="例：祈求五年千歲保佑闔家身體健康、公司生意興隆、出入平安"
                     class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#C98A28] text-sm text-[#261109] focus:outline-none focus:ring-2 focus:ring-[#D97706]"></textarea>
                 </div>
 

@@ -187,7 +187,7 @@ export class WelcomeUI {
 
     const greetingText = isReturning
       ? `歡迎「${saved.name}」回來德慈宮！您的 ${saved.merit || 0} 功德與參拜紀錄（${doneSteps}/5 步）都已自動保存，隨時可以接著逛大殿喔！`
-      : '歡迎蒞臨台南港口玉勅代天府德慈宮！請挑選一位原創台灣廟會角色並寫下稱呼，致贈您 30 功德結緣禮與香火背包，準備展開沉浸式 3D 參拜之旅！';
+      : '歡迎蒞臨玉勅代天府德慈宮！請挑選一位原創台灣廟會角色並寫下稱呼，致贈您 30 功德結緣禮與香火背包，準備展開沉浸式 3D 參拜之旅！';
 
     this.root.innerHTML = `
       <div class="fixed inset-0 z-[70] flex items-center justify-center sm:justify-start bg-[#0D2126]/80 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
@@ -196,7 +196,7 @@ export class WelcomeUI {
           <div class="bg-[#183C32] px-4 sm:px-5 py-3 flex items-center justify-between gap-2 text-[#FBF7E9] border-b-2 border-[#E5B968]">
             <div class="min-w-0">
               <div class="text-[11px] font-bold tracking-[0.14em] text-[#F5D68E]">挑高大殿 36 拜墊・多人即時連線漫步</div>
-              <h1 class="font-serif font-black text-lg sm:text-xl tracking-[0.10em] mt-0.5 truncate">台南港口玉勅代天府德慈宮</h1>
+              <h1 class="font-serif font-black text-lg sm:text-xl tracking-[0.10em] mt-0.5 truncate">玉勅代天府德慈宮</h1>
             </div>
             <span class="shrink-0 px-2.5 py-1 rounded-full bg-[#245446] border border-[#E5B968] text-[11px] font-black text-[#FFF1B8]">
               ${isReturning ? `💾 已讀檔・${saved.merit || 0} 功德` : '🎁 新人 30 功德'}

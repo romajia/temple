@@ -89,9 +89,9 @@ export const FOLKLORE_QUIZ = [
   {
     id: 'q2',
     question: '玉勅代天府德慈宮正殿所供奉的主神包含下列哪幾位神聖？',
-    options: ['代天巡狩五府千歲、觀音佛祖、天上聖母', '僅供奉土地公一位', '僅供奉月老星君'],
+    options: ['代天巡狩五年千歲（盧千歲）、觀音佛祖、天上聖母', '僅供奉土地公一位', '僅供奉月老星君'],
     answerIdx: 0,
-    explain: '玉勅代天府德慈宮正殿主祀代天巡狩五府千歲、觀音佛祖與天上聖母，慈悲護佑十方善信！'
+    explain: '玉勅代天府德慈宮正殿主祀代天巡狩五年千歲（十二瘟王之盧千歲＝五年千歲＝十二瘟王＝代天巡狩千歲爺＝千歲爺＝代天巡狩＝王爺公）、觀音佛祖與天上聖母！'
   },
   {
     id: 'q3',
@@ -187,7 +187,7 @@ export const INITIAL_TAISUI_LIST = [
   { id: 'ts-20', name: '蘇婉清', zodiac: '兔', wish: '心情開朗、順遂平安', type: 'official', createdAt: '2026/02/08' },
   { id: 'ts-21', name: '簡志偉', zodiac: '鼠', wish: '專案順利、家庭美滿', type: 'official', createdAt: '2026/02/10' },
   { id: 'ts-22', name: '莊惠雯', zodiac: '雞', wish: '平安健康、事事如意', type: 'official', createdAt: '2026/02/10' },
-  { id: 'ts-23', name: '游明德', zodiac: '龍', wish: '五府千歲庇佑安康', type: 'official', createdAt: '2026/02/12' },
+  { id: 'ts-23', name: '游明德', zodiac: '龍', wish: '五年千歲庇佑安康', type: 'official', createdAt: '2026/02/12' },
   { id: 'ts-24', name: '呂思穎', zodiac: '馬', wish: '逢凶化吉、所求皆應', type: 'official', createdAt: '2026/02/12' }
 ];
 
