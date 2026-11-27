@@ -6,6 +6,7 @@
   <title>玉勅代天府德慈宮｜3D Q版線上參拜</title>
 
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <!-- 非阻塞載入精簡版明體字型（避免下載整包數 MB 繁體字型拖慢開啟速度！） -->
@@ -191,6 +192,15 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: rgba(160, 118, 62, 0.45); border-radius: 999px; }
     ::-webkit-scrollbar-track { background: transparent; }
+    /* ★ V1.1 手機端對話框展開時自動收合底部聊天列、視角列與互動鈕，100% 不重疊、不遮擋主角與 NPC！ */
+    @media (max-width: 900px) {
+      body.rpg-dialogue-open #world-chat-container,
+      body.rpg-dialogue-open #camera-preset-bar,
+      body.rpg-dialogue-open #proximity-action-root,
+      body.rpg-dialogue-open #btn-exit-hall {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body class="font-sans text-[#183C32]">
@@ -264,9 +274,14 @@
           document.body.appendChild(host);
         }
         host.classList.remove('is-done');
-        var safeTitle = String(title || '3D 廟宇場景載入暫時受阻');
-        var safeDetail = String(detail || '請重新整理頁面，或關閉分頁後重新開啟瀏覽器再試一次。');
-        var safeRaw = rawErr ? String(rawErr) : '';
+        var escHtml = function (s) {
+          return String(s || '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+          });
+        };
+        var safeTitle = escHtml(title || '3D 廟宇場景載入暫時受阻');
+        var safeDetail = escHtml(detail || '請重新整理頁面，或關閉分頁後重新開啟瀏覽器再試一次。');
+        var safeRaw = rawErr ? escHtml(rawErr) : '';
         host.innerHTML =
           '<div class="loader-card">' +
             '<div class="loader-emblem">🙏</div>' +
@@ -297,21 +312,35 @@
             玉勅代天府德慈宮
           </div>
         </div>
-        <span id="online-status-pill" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F4EC] border border-[#2F855A]/40 text-xs font-extrabold text-[#14532D] shrink-0">
+        <button id="online-status-pill" type="button" title="點擊查看同場在線真人香客，揮手結緣或贈送平安符"
+          class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F4EC] hover:bg-[#D1FAE5] border border-[#2F855A]/45 text-xs font-extrabold text-[#14532D] shrink-0 transition cursor-pointer">
           <span class="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse"></span>
-          <span id="online-count-text">多人連線：1 位真人</span>
-        </span>
+          <span id="online-count-text" class="whitespace-nowrap">多人連線：1 位真人</span>
+        </button>
+        <button id="daily-visit-pill" type="button" title="今日累積上線參拜人數（點擊查看參拜統計摘要）"
+          class="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#D97706]/55 text-xs font-extrabold text-[#92400E] shrink-0 transition cursor-pointer">
+          <span>🙏</span>
+          <span id="daily-visit-count-text" class="whitespace-nowrap">今日參拜：1 人</span>
+        </button>
       </div>
 
-      <!-- 右上：功德背包 ＋ 晝夜切換 ＋ 配樂（永遠單排不折行！） -->
+      <!-- 右上：功德背包 ＋ 每日任務 ＋ 晝夜切換 ＋ 配樂（永遠單排不折行！） -->
       <div class="pointer-events-auto flex items-center justify-end gap-1 sm:gap-1.5 shrink-0">
         <button id="btn-open-backpack"
           class="px-2 sm:px-3 h-9 sm:h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#FEF3C7] border-2 border-[#C98A28] text-[#1C2D28] text-xs font-extrabold shadow-[0_6px_16px_rgba(16,32,26,0.2)] transition flex items-center gap-1 whitespace-nowrap"
-          title="查看隨身香火背包與每日簽到（自動存檔中）">
+          title="查看隨身香火背包、平安符圖鑑與每日簽到">
           <span>✨</span>
           <span id="hud-merit-text" class="text-[#8E1515] font-black">30 功德</span>
           <span class="text-[#C9B082]">|</span>
           <span>🎒<span id="hud-bag-count" class="font-black text-[#183C32] ml-0.5">2</span></span>
+        </button>
+
+        <button id="btn-open-quests"
+          class="relative px-2 sm:px-2.5 h-9 sm:h-10 rounded-xl bg-[#FFFBF2] hover:bg-[#FEF3C7] border-2 border-[#C98A28] text-[#8E1515] text-xs font-black shadow-[0_6px_16px_rgba(16,32,26,0.2)] transition flex items-center gap-1 whitespace-nowrap"
+          title="查看廟埕生活化每日任務">
+          <span>📜</span>
+          <span class="hidden sm:inline">任務</span>
+          <span id="hud-quest-badge" class="hidden -top-1.5 -right-1.5 absolute min-w-[17px] h-[17px] px-1 rounded-full bg-[#DC2626] text-white text-[10px] font-black flex items-center justify-center shadow">!</span>
         </button>
 
         <button id="btn-toggle-daynight"
@@ -329,15 +358,29 @@
       </div>
     </div>
 
-    <!-- 第二行左側：參拜進度引導卡（手機預設精巧收合，展開時寬度充裕不擠字！） -->
-    <div id="worship-guide-host" class="pointer-events-auto self-start"></div>
+    <!-- 第二行：左側參拜進度引導卡 ＋ 手機端精巧在線與今日參拜膠囊（不擠壓宮名！） -->
+    <div class="flex items-start justify-between gap-2 w-full">
+      <div id="worship-guide-host" class="pointer-events-auto self-start"></div>
+      <div class="md:hidden pointer-events-auto flex items-center gap-1 shrink-0">
+        <button id="daily-visit-pill-mobile" type="button" title="今日累積上線參拜人數"
+          class="inline-flex items-center gap-1 px-2 py-1.5 rounded-full bg-[#FEF3C7] border-2 border-[#D97706] text-[11px] font-black text-[#92400E] shadow shrink-0">
+          <span>🙏</span>
+          <span id="daily-visit-count-text-mobile">今日 1 人</span>
+        </button>
+        <button id="online-status-pill-mobile" type="button" title="點擊與同場在線真人香客揮手結緣或贈送平安符"
+          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#FFFBF2] border-2 border-[#2F855A] text-[11px] font-black text-[#14532D] shadow shrink-0">
+          <span class="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse"></span>
+          <span id="online-count-text-mobile">1 位真人</span>
+        </button>
+      </div>
+    </div>
   </header>
 
   <!-- 中央上方溫馨 Toast 提示容器 -->
   <div id="toast-host" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-lg text-center"></div>
 
   <!-- 底部視角切換列（★ 已取消虛擬搖桿，僅保留視角切換、拉近拉遠、走出廟外與廟務後台！） -->
-  <div class="fixed bottom-[60px] sm:bottom-3 left-2.5 right-2.5 sm:left-auto sm:right-3 z-30 flex items-center justify-between sm:justify-end gap-1.5 pointer-events-none">
+  <div id="camera-preset-bar" class="fixed bottom-[60px] sm:bottom-3 left-2.5 right-2.5 sm:left-auto sm:right-3 z-30 flex items-center justify-between sm:justify-end gap-1.5 pointer-events-none">
     <div class="pointer-events-auto flex items-center gap-0.5 p-1 rounded-xl bg-[#FFFBF2] border-2 border-[#C98A28] shadow-[0_6px_18px_rgba(16,32,26,0.24)] text-[#183C32]">
       <button data-cam-preset="front" title="正面視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg bg-[#8E1515] text-[#FFFDF6] text-xs font-black transition shadow-sm whitespace-nowrap">正面</button>
       <button data-cam-preset="left" title="左側視角" class="cam-preset-btn px-2 sm:px-2.5 h-8 rounded-lg hover:bg-[#F3E6CA] text-[#183C32] text-xs font-extrabold transition whitespace-nowrap">左側</button>
@@ -371,6 +414,6 @@
   <div id="modal-root"></div>
   <div id="welcome-root"></div>
 
-  <script type="module" src="./src/main.js?v=20261124v23"></script>
+  <script type="module" src="./src/main.js?v=20261127v55"></script>
 </body>
 </html>

@@ -305,13 +305,13 @@ export class WelcomeUI {
     if (!el) return;
     let idx = 0;
     this.typeTimer = setInterval(() => {
-      idx += 2;
+      idx += 3;
       el.textContent = fullText.slice(0, idx);
       if (idx >= fullText.length) {
         clearInterval(this.typeTimer);
         this.typeTimer = null;
       }
-    }, 24);
+    }, 14);
   }
 
   _bindEvents() {

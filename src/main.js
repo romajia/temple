@@ -10,7 +10,7 @@
  * - 廟後方男女廁所、每日 6 題（50 題庫）民俗挑戰、海報式公佈欄、30 字元公司太歲燈牆
  * - 隱藏預設密碼之廟務後台、多人即時同步與登入後底部頭頂氣泡聊天條
  */
-import { TEMPLE_CONFIG } from './config/templeConfig.js';
+import { TEMPLE_CONFIG, DAILY_QUESTS, PEER_EMOTES } from './config/templeConfig.js';
 import { storageSync } from './services/storageSync.js';
 import { soundEngine } from './audio/soundEngine.js';
 import { TempleSceneController } from './scene/templeScene.js';
@@ -24,6 +24,7 @@ import { AdminPanelUI } from './ui/adminPanelUI.js';
 import { RPGNarratorUI } from './ui/rpgNarratorUI.js';
 import { WorldChatBarUI } from './ui/worldChatBarUI.js';
 
+// ★ V32 上方浮字提示自動多停留 2 秒方便閱讀！
 function showToast(message, duration = 3600) {
   const host = document.getElementById('toast-host');
   if (!host) return;
@@ -35,7 +36,7 @@ function showToast(message, duration = 3600) {
     el.style.opacity = '0';
     el.style.transform = 'translateY(-8px)';
     setTimeout(() => el.remove(), 320);
-  }, duration);
+  }, duration + 2000);
 }
 
 async function initApp() {
@@ -68,10 +69,169 @@ async function initApp() {
   let worldChatBar;
 
   const updateOnlineCount = () => {
+    const real = storageSync.getRealPlayerCount();
     const el = document.getElementById('online-count-text');
-    if (el) {
-      el.textContent = `多人連線：${storageSync.getRealPlayerCount()} 位真人｜在場 ${storageSync.getOnlineCount()} 位`;
+    if (el) el.textContent = `多人連線：${real} 位真人`;
+    const mEl = document.getElementById('online-count-text-mobile');
+    if (mEl) mEl.textContent = `${real} 位真人`;
+
+    // ★ V46 同步更新頂部「今日參拜人數」膠囊（桌機＋手機）
+    const stats = storageSync.getVisitAnalytics();
+    const dEl = document.getElementById('daily-visit-count-text');
+    if (dEl) dEl.textContent = `今日參拜：${stats.today.toLocaleString('zh-TW')} 人`;
+    const dmEl = document.getElementById('daily-visit-count-text-mobile');
+    if (dmEl) dmEl.textContent = `今日 ${stats.today.toLocaleString('zh-TW')} 人`;
+  };
+
+  const refreshQuestsState = () => {
+    const states = storageSync.getAllQuestStates();
+    sceneCtrl?.updateNpcQuestMarkers?.(states);
+
+    // 同步廟前廣場「撿香腳」任務掉落香腳
+    const stubQ = states.find(q => q.id === 'q_incense_stubs');
+    if (stubQ) {
+      const remaining = stubQ.status === 'active' ? Math.max(0, stubQ.target - stubQ.progress) : 0;
+      sceneCtrl?.syncIncenseStubs?.(stubQ.status === 'active' && remaining > 0, remaining);
     }
+
+    // 更新頂部「📜 任務」紅點提示（有可回報或可接取時顯示）
+    const badge = document.getElementById('hud-quest-badge');
+    if (badge) {
+      const readyCount = states.filter(q => q.status === 'ready').length;
+      const availCount = states.filter(q => q.status === 'none').length;
+      if (readyCount > 0) {
+        badge.textContent = '?';
+        badge.className = '-top-1.5 -right-1.5 absolute min-w-[17px] h-[17px] px-1 rounded-full bg-[#16A34A] text-white text-[10px] font-black flex items-center justify-center shadow animate-bounce';
+      } else if (availCount > 0) {
+        badge.textContent = String(availCount);
+        badge.className = '-top-1.5 -right-1.5 absolute min-w-[17px] h-[17px] px-1 rounded-full bg-[#DC2626] text-white text-[10px] font-black flex items-center justify-center shadow';
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+  };
+
+  const openNpcDialogueOrQuest = (npcId) => {
+    const cfg = TEMPLE_CONFIG.npcs[npcId];
+    if (!cfg) return;
+    sceneCtrl.faceNPC(npcId);
+
+    // 若為 V1.1 任務 NPC，優先以輕快 30 秒內可完成的互動式任務對話呈現！
+    if (cfg.questId) {
+      const qState = storageSync.getQuestState(cfg.questId);
+      const qDef = qState.def;
+      if (qDef) {
+        if (qState.status === 'none') {
+          rpgNarrator.showDialogueSequence({
+            speaker: cfg.name,
+            title: `${qDef.icon} ${qDef.title}`,
+            avatar: cfg.avatar,
+            lines: [qDef.introLine],
+            actions: [
+              {
+                label: `✅ 接取任務（+${qDef.reward} 功德）`,
+                primary: true,
+                onClick: () => {
+                  storageSync.acceptQuest(qDef.id);
+                  soundEngine.playBlessingChime();
+                  refreshQuestsState();
+                  showToast(`📜 已接取任務【${qDef.title}】！`);
+                  if (qDef.id === 'q_pour_tea') sceneCtrl.walkToZone('teaStation');
+                  if (qDef.id === 'q_tiger_egg') sceneCtrl.walkToBackyard();
+                }
+              },
+              {
+                label: '先聽聽介紹',
+                primary: false,
+                onClick: () => {
+                  rpgNarrator.showDialogueSequence({
+                    speaker: cfg.name,
+                    title: cfg.title,
+                    avatar: cfg.avatar,
+                    lines: cfg.dialogues || ['祝您平安順心！']
+                  });
+                }
+              }
+            ]
+          });
+          return;
+        }
+        if (qState.status === 'ready') {
+          rpgNarrator.showDialogueSequence({
+            speaker: cfg.name,
+            title: `${qDef.icon} 任務完成回報`,
+            avatar: cfg.avatar,
+            lines: [qDef.completeLine],
+            actions: [
+              {
+                label: `🎁 領取 +${qDef.reward} 功德獎勵`,
+                primary: true,
+                onClick: () => {
+                  const res = storageSync.completeQuest(qDef.id);
+                  if (res.ok) {
+                    soundEngine.playBlessingChime();
+                    updatePlayerHud();
+                    refreshQuestsState();
+                    sceneCtrl.playPlayerEmote('salute', `任務完成！+${res.reward} 功德 ✨`);
+                    showToast(`🎉 完成【${qDef.title}】，獲得 +${res.reward} 功德！`, 4200);
+                  }
+                }
+              }
+            ]
+          });
+          return;
+        }
+        if (qState.status === 'active') {
+          const actions = [];
+          if (qDef.id === 'q_pour_tea') {
+            actions.push({ label: '🚶 帶我去奉茶區', primary: true, onClick: () => sceneCtrl.walkToZone('teaStation') });
+          } else if (qDef.id === 'q_tiger_egg') {
+            actions.push({
+              label: storageSync.getEggCount() > 0 ? '🐯 已有蛋，去拜虎爺' : '🐔 帶我去後埕撿蛋',
+              primary: true,
+              onClick: () => {
+                if (storageSync.getEggCount() > 0) sceneCtrl.walkToZone('tigerDeity');
+                else sceneCtrl.walkToBackyard();
+              }
+            });
+          } else if (qDef.id === 'q_night_patrol') {
+            actions.push({
+              label: '🌙 立即切換夜景巡視',
+              primary: true,
+              onClick: () => document.getElementById('btn-toggle-daynight')?.click()
+            });
+          }
+          rpgNarrator.showDialogueSequence({
+            speaker: cfg.name,
+            title: `${qDef.icon} 進行中 (${qState.progress}/${qState.target})`,
+            avatar: cfg.avatar,
+            lines: [qDef.progressLine],
+            actions
+          });
+          return;
+        }
+        if (qState.status === 'done') {
+          rpgNarrator.showDialogueSequence({
+            speaker: cfg.name,
+            title: cfg.title,
+            avatar: cfg.avatar,
+            lines: [qDef.doneLine, ...(cfg.dialogues || []).slice(0, 1)]
+          });
+          return;
+        }
+      }
+    }
+
+    rpgNarrator.showDialogueSequence({
+      speaker: cfg.name,
+      title: cfg.title,
+      avatar: cfg.avatar,
+      lines: cfg.dialogues || ['祝您平安順心！'],
+      onDone: () => {
+        if (npcId === 'quizMaster') modalsUI.openQuizBoothModal();
+        if (npcId === 'shopkeeper') modalsUI.openOfferingShopModal();
+      }
+    });
   };
 
   const updatePlayerHud = () => {
@@ -121,29 +281,17 @@ async function initApp() {
       return;
     }
 
-    // 1.5 廟旁樹蔭下加設長板凳 → 坐下乘涼並直接從底部統一「紀錄」抽屜彈開聊天！
+    // 1.5 ★ V32 坐上長板凳不自動彈開聊天視窗，有人發言時下方「💬 紀錄」跳紅色數字，想聊再點開！
     if (target.type === 'sideBench') {
       sceneCtrl.setPlayerSitOnBench(target.bench);
       worldChatBar.enterBenchMode(target.title || '樹蔭板凳聊天');
-      rpgNarrator.showFloatingBanner(`已坐上【${target.title}】，聊天已整合於下方「紀錄」抽屜，隨時可收合或起身喔！`, '🪑', 3400);
+      rpgNarrator.showFloatingBanner(`已坐上【${target.title}】乘涼～有人發言時下方「紀錄」會亮出紅色未讀數字，想聊隨時點開喔！`, '🪑', 3600);
       return;
     }
 
-    // 2. 靠近常駐、攤商或巡遊 NPC → 浮現 RPG 逐字對話引導（與攤商對話完自動開啟挑戰或供品鋪！）
+    // 2. 靠近常駐、攤商或巡遊 NPC → 進入 V1.1 輕快任務對話或劇情介紹！
     if (target.type === 'npc') {
-      const cfg = TEMPLE_CONFIG.npcs[target.id];
-      if (!cfg) return;
-      sceneCtrl.faceNPC(target.id);
-      rpgNarrator.showDialogueSequence({
-        speaker: cfg.name,
-        title: cfg.title,
-        avatar: cfg.avatar,
-        lines: cfg.dialogues || ['祝您平安順心！'],
-        onDone: () => {
-          if (target.id === 'quizMaster') modalsUI.openQuizBoothModal();
-          if (target.id === 'shopkeeper') modalsUI.openOfferingShopModal();
-        }
-      });
+      openNpcDialogueOrQuest(target.id);
       return;
     }
 
@@ -156,7 +304,7 @@ async function initApp() {
         modalsUI.openTianGongModal(playerStatus);
         break;
       case 'offeringTable':
-        modalsUI.openOfferingsModal();
+        modalsUI.openOfferingsModal(target.offeringSide);
         break;
       case 'mainWorship':
         modalsUI.openMainWorshipModal();
@@ -182,17 +330,53 @@ async function initApp() {
       case 'fishPond':
         modalsUI.openFishPondModal();
         break;
+      case 'teaStation':
+        modalsUI.openTeaStationModal(sceneCtrl.holdingTeapot);
+        break;
+      case 'teaOffer':
+        modalsUI.openTeaOfferModal(sceneCtrl.holdingTeapot);
+        break;
+      case 'tigerDeity':
+        modalsUI.openTigerDeityModal();
+        break;
+      case 'fiveCamps':
+        modalsUI.openFiveCampsModal();
+        break;
+      case 'talismanTable':
+        modalsUI.openTalismanIntroModal({
+          onWalkToMeritBox: () => {
+            sceneCtrl.walkToZone('meritBox', () => {
+              showToast('🧧 已抵達功德箱，投入 100 功德即可求取數位平安符！');
+            });
+          }
+        });
+        break;
+      case 'meritBox':
+        modalsUI.openMeritBoxModal();
+        break;
+      case 'serviceDesk':
+        modalsUI.openServiceDeskModal({
+          onOpenTaiSui: () => taiSuiUI.open(),
+          onLampRegistered: (entry) => {
+            sceneCtrl.updateTaiSuiWall(storageSync.getTaiSuiList(), entry.name);
+            sceneCtrl.triggerBlessingAtZone('taisui');
+            showToast(`🛎️ 服務台已為【${entry.name}】完成登記並同步點亮 3D 太歲牆！`);
+          }
+        });
+        break;
       case 'bench':
-        sceneCtrl.setPlayerSitOnBench();
+        sceneCtrl.setPlayerSitOnBench(null, null, target.benchSide || null);
         worldChatBar.enterBenchMode('大榕樹板凳聊天');
-        rpgNarrator.showFloatingBanner('已坐上廟前大榕樹木頭板凳，聊天已整合於下方「紀錄」抽屜喔！', '🪑', 3400);
+        rpgNarrator.showFloatingBanner('已坐上廟前大榕樹木頭板凳乘涼～有人發言時下方「紀錄」會跳出紅色數字，想聊隨時點開喔！', '🪑', 3600);
         break;
     }
   };
 
-  // 1. 初始化 RPG 劇情引導與底部統一即時聊天紀錄（整合廟埕＋板凳聊天！）
+  // 1. 初始化 RPG 劇情引導（★ 手機端開啟對話時自動微調鏡頭防遮擋！）與底部統一即時聊天紀錄
   updatePlayerHud();
-  rpgNarrator = new RPGNarratorUI(rpgRoot);
+  rpgNarrator = new RPGNarratorUI(rpgRoot, {
+    onActiveChange: (isActive) => sceneCtrl?.setDialogueCameraShift?.(isActive)
+  });
   worldChatBar = new WorldChatBarUI(worldChatRoot, {
     onSpeak: (text) => sceneCtrl.showPlayerBubble(text),
     onStandUp: () => sceneCtrl.standUpPlayer()
@@ -219,10 +403,51 @@ async function initApp() {
       if (modalsUI?.chantActive) modalsUI.stopChantingMode(false);
       soundEngine.setMusicDucking(1.0);
     },
+    onBenchSeated: (benchTitle) => {
+      worldChatBar?.enterBenchMode?.(benchTitle || '大榕樹板凳聊天');
+      rpgNarrator?.showFloatingBanner?.(`已坐上【${benchTitle || '象棋板凳'}】乘涼觀棋～有人發言時下方「紀錄」會亮出紅色未讀數字，想聊隨時點開喔！`, '🪑', 3600);
+    },
     onBroadcastPresence: (pose) => storageSync.broadcastPresence(pose),
     onIndoorStateChange: (isIndoor) => {
       const exitBtn = document.getElementById('btn-exit-hall');
       if (exitBtn) exitBtn.classList.toggle('hidden', !isIndoor);
+    },
+    // ★ V1.1 拾取後埕土雞蛋、廟埕香腳、點擊任務 NPC 與點擊在線真人玩家！
+    onCollectEgg: () => {
+      const total = storageSync.addEgg(1);
+      soundEngine.playBlessingChime();
+      updatePlayerHud();
+      sceneCtrl.showPlayerBubble('撿到新鮮土雞蛋啦！🥚✨', 2.4);
+      showToast(`🥚 撿起 1 顆新鮮土雞蛋存入背包（持有 ×${total}），可進大殿獻給桌下虎爺喔！`, 4000);
+    },
+    onCatchChicken: () => {
+      storageSync.addMerit(-5);
+      soundEngine.playSoftClick();
+      updatePlayerHud();
+      sceneCtrl.showPlayerBubble('啊！不可以抓雞喔… (-5 功德) 🐔', 2.8);
+      showToast('🐔 咕咕咕！後埕放山雞是神明愛護的生靈，不可以抓雞喔！（扣除 5 功德，請撿地上雞蛋就好～）', 4400);
+    },
+    onCollectIncenseStub: () => {
+      soundEngine.playSoftClick();
+      const prog = storageSync.progressQuest('q_incense_stubs', 1);
+      refreshQuestsState();
+      if (prog.updated) {
+        if (prog.justReady) {
+          soundEngine.playBlessingChime();
+          sceneCtrl.showPlayerBubble('香腳撿齊了！回去找阿財伯 🧹✨', 2.8);
+          showToast('✨ 已撿齊 4 根香腳！快回去找廟公阿財伯領 +10 功德！', 4200);
+        } else {
+          showToast(`🧹 已回收掉落香腳（${prog.progress} / ${prog.target}）`, 2200);
+        }
+      }
+    },
+    onNpcClick: (npcId) => {
+      soundEngine.playSoftClick();
+      openNpcDialogueOrQuest(npcId);
+    },
+    onPeerClick: (peer) => {
+      soundEngine.playSoftClick();
+      modalsUI.openPeerInteractionModal(peer);
     },
     onWebGLContextLost: () => {
       window.__showTempleLoaderError?.(
@@ -319,8 +544,10 @@ async function initApp() {
       completeStep('offering', `✨ 祈願已上達神明！已敬獻【${record.name}】${note}`);
     },
     onWorshipMainDeity: () => {
+      if (modalsUI?.chantActive) modalsUI.stopChantingMode(false);
+      sceneCtrl.player?.setChanting?.(false);
       sceneCtrl.setPlayerHoldingIncense(true);
-      showToast('🙏 立於中央大道虔誠三拜觀音佛祖、代天巡狩及殿內十一尊神聖並上前插香…', 3400);
+      showToast('🙏 跪於中央長跪墊手持清香虔誠三拜觀音佛祖、代天巡狩及殿內十一尊神聖並上前插香…', 3400);
       sceneCtrl.playMainDeityRitual(() => {
         playerStatus.hasIncense = false;
         storageSync.updatePlayer({ hasIncense: false });
@@ -330,7 +557,10 @@ async function initApp() {
     },
     onEnterChantMode: () => {
       soundEngine.setMusicDucking(0.22);
-      rpgNarrator.showFloatingBanner('已跪坐於拜墊上，配樂自動轉柔，敲木魚每 5 下自動累積 +5 功德並存檔！', '📿', 4200);
+      rpgNarrator.showFloatingBanner('已跪坐於拜墊上並端起木魚，配樂自動轉柔，敲木魚每 5 下自動累積 +5 功德並存檔！', '📿', 4200);
+    },
+    onChantTap: () => {
+      sceneCtrl.playPlayerWoodenFishTap();
     },
     onExitChantMode: () => {
       sceneCtrl.standUpPlayer();
@@ -365,6 +595,118 @@ async function initApp() {
           completeStep('furnace', '🔥 金紙已逐張順利化金圓滿！願德慈宮眾神庇佑您平安順遂！');
         }
       );
+    },
+    // ★ V1.1 奉茶拿壺、神桌倒茶、桌下虎爺獻蛋、功德箱平安符、任務尋路與真人結緣互動
+    onTakeTeapot: () => {
+      sceneCtrl.setPlayerHoldingTeapot(true);
+      sceneCtrl.showPlayerBubble('提起茶壺，準備幫神明奉茶 🍵', 2.6);
+      showToast('🍵 已提起茶壺！正帶您前往主神桌「清茶三杯」敬茶…', 2800);
+      sceneCtrl.walkToZone('teaOffer');
+    },
+    onWalkToTeaStation: () => {
+      sceneCtrl.walkToZone('teaStation');
+    },
+    onPourTea: () => {
+      soundEngine.playBell(0.24, 528);
+      sceneCtrl.playPourTeaSequence(() => {
+        const teaRec = storageSync.recordTeaOffer(storageSync.getPlayer().name || '虔誠香客');
+        sceneCtrl.syncTeaOffer(teaRec);
+        storageSync.addMerit(10);
+        const qRes = storageSync.progressQuest('q_pour_tea', 1);
+        soundEngine.playBlessingChime();
+        updatePlayerHud();
+        refreshQuestsState();
+        showToast(
+          qRes.justReady
+            ? '🍵 敬奉清茶三杯圓滿（+10 功德，10 分鐘後自動撤換）！快回去向奉茶姊姊淑芬回報領獎喔！'
+            : '🍵 誠心為神明添滿清茶三杯，茶香繚繞（+10 功德，10 分鐘後自動撤換）！',
+          4200
+        );
+      });
+    },
+    onTigerFocus: (active) => {
+      sceneCtrl.focusTigerDeityCloseup(active);
+    },
+    onWorshipTigerIncenseOnly: () => {
+      sceneCtrl.playTigerWorshipWithIncense(false);
+      const meritRes = storageSync.claimTigerWorshipMerit();
+      updatePlayerHud();
+      showToast(
+        meritRes.granted
+          ? `🔥 已誠心向黑虎將軍上香祈福（+1 功德，今日 ${meritRes.used}/3）！`
+          : '🔥 已誠心向黑虎將軍上香祈福！（今日拜虎爺功德已達 3 次上限）',
+        3400
+      );
+      return meritRes;
+    },
+    onOfferEggToTiger: () => {
+      if (!storageSync.consumeEgg(1)) {
+        showToast('⚠️ 背包內沒有新鮮土雞蛋喔！請至廟後草地找母雞撿蛋～');
+        return { granted: false };
+      }
+      const nextEggs = storageSync.addTigerEggOffering(storageSync.getPlayer().name || '虔誠香客');
+      sceneCtrl.syncTigerEggs(nextEggs);
+      sceneCtrl.playTigerEggOfferOnly();
+      const meritRes = storageSync.claimTigerWorshipMerit();
+      const qRes = storageSync.progressQuest('q_tiger_egg', 1);
+      updatePlayerHud();
+      refreshQuestsState();
+      const meritText = meritRes.granted ? `+1 功德，今日 ${meritRes.used}/3` : '今日功德已達 3 次上限';
+      showToast(
+        qRes.justReady
+          ? `🐯 虎爺公歡喜享用新鮮土雞蛋（供盤 ${nextEggs.length}/3 顆，${meritText}）！快回去向花布阿嬤回報領獎喔！`
+          : `🐯 已誠心向虎爺獻上新鮮土雞蛋（供盤 ${nextEggs.length}/3 顆，10 分鐘後自動收起，${meritText}）！`,
+        4400
+      );
+      return meritRes;
+    },
+    onWorshipFiveCamps: () => {
+      showToast('🚩 正誠心三拜五營將軍並於五營香爐插上三柱清香…', 3000);
+      sceneCtrl.playFiveCampsRitual(() => {
+        storageSync.addMerit(8);
+        soundEngine.playBlessingChime();
+        updatePlayerHud();
+        showToast('🚩 五營將軍參拜插香圓滿！護境安民、平安順遂（+8 功德）！', 4000);
+      });
+    },
+    onWalkToBackyard: () => {
+      sceneCtrl.walkToBackyard();
+      showToast('🐔 正前往廟後埕草坪尋找放山母雞與發光土雞蛋…', 3000);
+    },
+    onTalismanObtained: (talisman) => {
+      sceneCtrl.triggerBlessingAtZone('meritBox');
+      sceneCtrl.showPlayerBubble(`求得 ${talisman.shortName}！${talisman.emoji}`, 3.0);
+      updatePlayerHud();
+    },
+    onWalkToNpc: (npcId) => {
+      const npc = sceneCtrl.npcManager?.getNpcById?.(npcId);
+      if (!npc) return;
+      const np = npc.avatar.root.position;
+      const gx = npcId === 'keeper'
+        ? TEMPLE_CONFIG.zones.serviceDesk.standPos[0]
+        : npcId === 'shufen'
+          ? -6.85
+          : np.x;
+      const gz = npcId === 'keeper'
+        ? TEMPLE_CONFIG.zones.serviceDesk.standPos[2]
+        : npcId === 'shufen'
+          ? 5.45
+          : np.z + 1.4;
+      sceneCtrl.walkToWorldPoint(gx, gz, () => {
+        openNpcDialogueOrQuest(npcId);
+      });
+      showToast(`🚶 正在帶路前往尋找 ${npc.config.name}…`, 2400);
+    },
+    onSendPeerEmote: async (peer, actionId) => {
+      const em = PEER_EMOTES.find(e => e.id === actionId) || PEER_EMOTES[0];
+      sceneCtrl.playPlayerEmote(actionId, `向 ${peer.name} ${em.bubble}`);
+      await storageSync.sendPeerEmote(peer, actionId);
+      showToast(`${em.emoji} 已向「${peer.name}」送出${em.label}，等待對方回禮即可各得 +1 功德！`, 3800);
+    },
+    onGiftSent: (peer, giftLabel) => {
+      sceneCtrl.playPlayerEmote('salute', `贈送 ${giftLabel} 給 ${peer.name} 🎁`);
+      updatePlayerHud();
+      showToast(`🎁 已將【${giftLabel}】結緣贈送給「${peer.name}」！`, 3800);
     }
   });
 
@@ -379,6 +721,8 @@ async function initApp() {
   });
 
   storageSync.subscribe('offerings', (list) => sceneCtrl.syncOfferings(list));
+  storageSync.subscribe('tigerEggs', (list) => sceneCtrl.syncTigerEggs(list));
+  storageSync.subscribe('teaOffer', (tea) => sceneCtrl.syncTeaOffer(tea));
   storageSync.subscribe('taisui', (list) => sceneCtrl.updateTaiSuiWall(list));
   storageSync.subscribe('bulletin', (b) => sceneCtrl.updateBulletinBoard(b));
   storageSync.subscribe('player', () => updatePlayerHud());
@@ -386,36 +730,134 @@ async function initApp() {
     sceneCtrl.syncRemotePeers(peers);
     updateOnlineCount();
   });
+  storageSync.subscribe('quests', () => refreshQuestsState());
+  storageSync.subscribe('interaction', (ev) => {
+    if (!ev) return;
+    if (ev.kind === 'emote') {
+      const em = PEER_EMOTES.find(e => e.id === ev.action) || PEER_EMOTES[0];
+      soundEngine.playSoftClick();
+      sceneCtrl.playRemotePeerEmote(ev.fromUid || ev.fromClientId, ev.action, em.bubble);
+      modalsUI.showIncomingInteractionBanner(ev, async (incoming) => {
+        const res = await storageSync.replyPeerEmote(incoming);
+        sceneCtrl.playPlayerEmote('salute', `回禮給 ${incoming.fromName} 🙏`);
+        updatePlayerHud();
+        if (res.granted) {
+          showToast(`🙏 已回禮給「${incoming.fromName}」！雙方結緣各獲得 +1 功德（今日 ${res.used}/3）！`, 4000);
+        } else {
+          showToast(`🙏 已回禮給「${incoming.fromName}」！（今日與對方已達 3 次結緣功德上限，持續互動一樣歡喜喔）`, 4200);
+        }
+      });
+    } else if (ev.kind === 'reply') {
+      soundEngine.playBlessingChime();
+      sceneCtrl.playRemotePeerEmote(ev.fromUid || ev.fromClientId, 'salute', '歡喜回禮 🙏✨');
+      updatePlayerHud();
+      if (ev.rewardGranted) {
+        showToast(`🤝 「${ev.fromName}」已向你回禮！雙方結緣各獲得 +1 功德！`, 4200);
+      } else {
+        showToast(`🤝 「${ev.fromName}」已向你熱情回禮！（今日已達 3 次功德上限）`, 3600);
+      }
+    } else if (ev.kind === 'gift') {
+      soundEngine.playBlessingChime();
+      sceneCtrl.playRemotePeerEmote(ev.fromUid || ev.fromClientId, 'salute', `贈送結緣禮 🎁`);
+      updatePlayerHud();
+      showToast(`🎁 收到「${ev.fromName}」結緣贈送的【${ev.giftLabel || '結緣禮'}】，已存入您的隨身背包！`, 4800);
+    }
+  });
 
   // ★ 關鍵修正：3D 場景非同步初始化期間若雲端共享資料已先拉取完成，訂閱前漏接事件會導致 3D 太歲牆／公佈欄停留在舊預設名單！
   //   註冊訂閱後立即把最新資料同步到 3D 牆面，並強制向雲端再拉一次最新清單確保信徒進場就看到最新內容！
   sceneCtrl.syncOfferings(storageSync.getOfferings());
+  sceneCtrl.syncTigerEggs(storageSync.getTigerEggs());
+  sceneCtrl.syncTeaOffer(storageSync.getTeaOffer());
   sceneCtrl.updateTaiSuiWall(storageSync.getTaiSuiList());
   sceneCtrl.updateBulletinBoard(storageSync.getBulletin());
   storageSync.refreshCloudShared(true);
 
+  storageSync.subscribe('visitStats', () => {
+    updateOnlineCount();
+    if (adminUI?.isOpen && adminUI.authenticated && adminUI.activeTab === 'stats') {
+      adminUI.renderDashboard();
+    }
+  });
+
   updateOnlineCount();
   updatePlayerHud();
+  refreshQuestsState();
+
+  const showDailyVisitSummaryToast = () => {
+    soundEngine.playSoftClick();
+    const s = storageSync.getVisitAnalytics();
+    showToast(`🙏 今日參拜 ${s.today.toLocaleString('zh-TW')} 人・本週 ${s.week.toLocaleString('zh-TW')} 人・本月 ${s.month.toLocaleString('zh-TW')} 人・累積上線共計 ${s.cumulative.toLocaleString('zh-TW')} 人次！`, 4800);
+  };
+  document.getElementById('daily-visit-pill')?.addEventListener('click', showDailyVisitSummaryToast);
+  document.getElementById('daily-visit-pill-mobile')?.addEventListener('click', showDailyVisitSummaryToast);
+
+  document.getElementById('online-status-pill')?.addEventListener('click', () => {
+    soundEngine.playSoftClick();
+    modalsUI.openOnlinePeersModal();
+  });
+  document.getElementById('online-status-pill-mobile')?.addEventListener('click', () => {
+    soundEngine.playSoftClick();
+    modalsUI.openOnlinePeersModal();
+  });
+
+  document.getElementById('btn-open-quests')?.addEventListener('click', () => {
+    soundEngine.playSoftClick();
+    modalsUI.openQuestBoardModal();
+  });
 
   document.getElementById('btn-open-backpack')?.addEventListener('click', () => {
     soundEngine.playSoftClick();
     modalsUI.openBackpackModal();
   });
 
-  // ---- 右上角晝夜切換 ----
+  // ---- 右上角晝夜切換（★ V33 預設依真實世界當地時間自動切換白天 06:00–17:59 ／夜晚 18:00–05:59，並完整保留手動切換按鈕！） ----
   const dnBtn = document.getElementById('btn-toggle-daynight');
   const dnIcon = document.getElementById('daynight-icon');
   const dnLabel = document.getElementById('daynight-label');
-  dnBtn?.addEventListener('click', () => {
-    soundEngine.playSoftClick();
-    const mode = sceneCtrl.toggleDayNightMode();
+  const getRealWorldDayNightMode = () => {
+    const h = new Date().getHours();
+    return (h >= 6 && h < 18) ? 'day' : 'night';
+  };
+  const syncDayNightBtnUI = (mode) => {
     if (mode === 'night') {
       if (dnIcon) dnIcon.textContent = '☀️';
       if (dnLabel) dnLabel.textContent = '切換白天';
-      rpgNarrator.showFloatingBanner('夜幕降臨！廟埕暖黃串燈、石燈籠光池與祈福天燈已經點亮～', '🌙', 4200);
     } else {
       if (dnIcon) dnIcon.textContent = '🌙';
       if (dnLabel) dnLabel.textContent = '切換夜景';
+    }
+  };
+  let userManualDayNight = false;
+  const initialRealMode = getRealWorldDayNightMode();
+  sceneCtrl.setDayNightMode(initialRealMode, true);
+  syncDayNightBtnUI(initialRealMode);
+
+  // 每分鐘檢查一次真實世界時間：若跨越日出 (06:00) 或日落 (18:00) 且玩家未手動鎖定，即自動平滑變換日夜！
+  setInterval(() => {
+    if (userManualDayNight) return;
+    const desired = getRealWorldDayNightMode();
+    if (sceneCtrl.atmosphere?.mode !== desired) {
+      sceneCtrl.setDayNightMode(desired, false);
+      syncDayNightBtnUI(desired);
+    }
+  }, 60000);
+
+  dnBtn?.addEventListener('click', () => {
+    soundEngine.playSoftClick();
+    userManualDayNight = true;
+    const mode = sceneCtrl.toggleDayNightMode();
+    syncDayNightBtnUI(mode);
+    if (mode === 'night') {
+      const qRes = storageSync.progressQuest('q_night_patrol', 1);
+      refreshQuestsState();
+      if (qRes.justReady) {
+        soundEngine.playBlessingChime();
+        showToast('🌙 夜巡夜景巡視完成！快回去找總幹事阿國領取 +15 功德！', 4400);
+      } else {
+        rpgNarrator.showFloatingBanner('夜幕降臨！廟埕暖黃串燈、石燈籠光池與祈福天燈已經點亮～', '🌙', 4200);
+      }
+    } else {
       rpgNarrator.showFloatingBanner('已切換回暖陽白天模式，欣賞德慈宮挑高燕尾飛簷與彩繪細節！', '☀️', 3600);
     }
   });
@@ -512,6 +954,9 @@ async function initApp() {
       sceneCtrl.setMovementLocked(false);
       sceneCtrl.showPlayerBubble(`大家好，我是${name}！🙏`);
       setAudioBtnUI(!musicEnabled);
+
+      // ★ V46 玩家上線登記今日參拜與累積上線人次，並即時更新頂部今日參拜數！
+      storageSync.recordOnlineVisit(name);
 
       // 掛載玩家登入後專屬底部即時聊天對話框（送出立即浮在頭頂＋多人同步）
       worldChatBar.mount();

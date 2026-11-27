@@ -29,6 +29,8 @@ export class WorldChatBarUI {
     this.lastSendAt = 0;
     this.unreadCount = 0;
     this.lastSeenMsgCount = storageSync.getChatMessages().length;
+    this._lastRenderSig = '';
+    this._userScrolledUp = false;
     this._npcReplyTimer = null;
 
     storageSync.subscribe('chat', () => {
@@ -37,7 +39,7 @@ export class WorldChatBarUI {
       if (this.drawerOpen) {
         this.unreadCount = 0;
         this.lastSeenMsgCount = total;
-        this._renderMessages();
+        this._renderMessages({ forceScrollBottom: false });
       } else if (total > this.lastSeenMsgCount) {
         this.unreadCount += (total - this.lastSeenMsgCount);
         this.lastSeenMsgCount = total;
@@ -71,7 +73,13 @@ export class WorldChatBarUI {
               <button id="wc-close-drawer" type="button" class="text-[#183C32] hover:text-[#8E1515] font-black px-2 py-0.5 rounded-lg bg-white/70 border border-[#D4B47C] whitespace-nowrap">收合 ▼</button>
             </div>
           </div>
-          <div id="wc-msg-list" class="max-h-48 overflow-y-auto p-2.5 space-y-1.5 text-xs"></div>
+          <div class="relative">
+            <div id="wc-msg-list" class="max-h-52 overflow-y-auto p-2.5 space-y-1.5 text-xs"></div>
+            <button id="wc-jump-latest" type="button"
+              class="hidden absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#8E1515] hover:bg-[#701010] text-[#FFFDF6] text-[11px] font-black shadow-lg border border-[#FAD364] transition">
+              ↓ 有新紀錄・跳至最新
+            </button>
+          </div>
           <div class="px-2.5 pb-2 pt-1.5 bg-[#FAF1DC] border-t border-[#E6D2AE] flex flex-wrap gap-1.5">
             ${QUICK_SAY.map(s => `
               <button type="button" data-wc-quick="${s}"
@@ -151,6 +159,22 @@ export class WorldChatBarUI {
       }
     });
 
+    const listEl = this.root.querySelector('#wc-msg-list');
+    const jumpLatestBtn = this.root.querySelector('#wc-jump-latest');
+    listEl?.addEventListener('scroll', () => {
+      const distFromBottom = listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight;
+      this._userScrolledUp = distFromBottom > 32;
+      if (!this._userScrolledUp) {
+        jumpLatestBtn?.classList.add('hidden');
+      }
+    });
+    jumpLatestBtn?.addEventListener('click', () => {
+      soundEngine.playSoftClick();
+      if (listEl) listEl.scrollTop = listEl.scrollHeight;
+      this._userScrolledUp = false;
+      jumpLatestBtn.classList.add('hidden');
+    });
+
     this._updateModeHeader();
   }
 
@@ -163,23 +187,25 @@ export class WorldChatBarUI {
     if (this.drawerOpen) {
       this.unreadCount = 0;
       this.lastSeenMsgCount = storageSync.getChatMessages().length;
+      this._userScrolledUp = false;
       this._updateUnreadBadge();
       this._updateModeHeader();
-      this._renderMessages();
+      this._renderMessages({ forceScrollBottom: true });
     }
   }
 
   /**
-   * ★ 坐上任何板凳／椅子時，直接從統一「紀錄」抽屜彈開（不另外彈開第二個視窗！）
+   * ★ V32 坐上任何板凳／椅子時，不自動彈開聊天視窗（保持畫面清爽欣賞廟景）；
+   *   若有人發言時底部「💬 紀錄」按鈕將跳出紅色未讀數字，角色想聊隨時點開即可！
    */
   enterBenchMode(title = '廟埕板凳聊天') {
     this.benchMode = true;
     this.benchTitle = title;
     if (!this.mounted) return;
     this._syncBenchUI();
-    this.setDrawerOpen(true);
+    this._updateUnreadBadge();
     const input = this.root.querySelector('#wc-input');
-    if (input) input.placeholder = '安坐板凳聊聊天，送出會同步至聊天紀錄…';
+    if (input) input.placeholder = '安坐板凳乘涼～想聊直接輸入或點左側「紀錄」展開…';
   }
 
   exitBenchMode() {
@@ -253,11 +279,11 @@ export class WorldChatBarUI {
     const { clean, flagged } = sanitizeChatText(raw);
     if (!clean) return false;
     if (flagged) {
-      const { strikes, mutedSeconds } = storageSync.recordProfanityViolation();
+      const { strikes, mutedSeconds, penalty } = storageSync.recordProfanityViolation();
       if (mutedSeconds > 0) {
-        this._showGuardNotice(`🙏 多次偵測到不雅字詞，已以 * 號淨化並啟動「靜心冷卻 ${mutedSeconds} 秒」維護廟埕清淨！`, 5000);
+        this._showGuardNotice(`🙏 多次偵測到不雅字詞，已淨化、扣除 ${penalty || 3} 功德並啟動「靜心冷卻 ${mutedSeconds} 秒」！`, 5200);
       } else {
-        this._showGuardNotice(`🙏 廟埕乃神明清淨聖地，不雅字詞已自動以 * 號淨化！請口說好話（提醒 ${strikes}/3）`, 4200);
+        this._showGuardNotice(`🙏 廟埕乃神明清淨聖地，說髒話已以 * 號淨化並扣除 ${penalty || 3} 功德！請口說好話（提醒 ${strikes}/3）`, 4400);
       }
     }
 
@@ -274,7 +300,7 @@ export class WorldChatBarUI {
       text: clean
     });
     this.onSpeak?.(clean);
-    if (this.drawerOpen) this._renderMessages();
+    if (this.drawerOpen) this._renderMessages({ forceScrollBottom: true });
 
     // 4. ★ 只有目前僅 1 位真人上線時才由 NPC 親切回話；超過 1 位真人上線時不觸發 NPC 對話！
     if (storageSync.getRealPlayerCount() <= 1 && !flagged) {
@@ -289,10 +315,24 @@ export class WorldChatBarUI {
     return true;
   }
 
-  _renderMessages() {
+  _renderMessages({ forceScrollBottom = false } = {}) {
     const listEl = this.root.querySelector('#wc-msg-list');
     if (!listEl) return;
-    const msgs = storageSync.getChatMessages().slice(-50);
+    const msgs = storageSync.getChatMessages().slice(-80);
+    const last = msgs[msgs.length - 1];
+    const sig = `${msgs.length}|${last?.id || ''}|${last?.timestamp || ''}|${last?.text || ''}`;
+
+    // ★ V33 輪詢若無新訊息絕不重繪 DOM，完全保留玩家向上捲動翻看歷史紀錄的位置！
+    if (!forceScrollBottom && sig === this._lastRenderSig) {
+      return;
+    }
+
+    const prevScrollTop = listEl.scrollTop;
+    const prevDistFromBottom = listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight;
+    const wasAtBottom = prevDistFromBottom <= 36;
+    const hadPreviousContent = Boolean(this._lastRenderSig);
+    this._lastRenderSig = sig;
+
     listEl.innerHTML = msgs.map(m => {
       const timeStr = m.timestamp
         ? new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
@@ -311,7 +351,7 @@ export class WorldChatBarUI {
         : '';
       return `
         <div class="flex items-start gap-1.5 leading-snug ${isPeer ? 'bg-[#EFF6FF] border-[#93C5FD]' : 'bg-white/80 border-[#EFE2C6]'} rounded-xl px-2.5 py-1.5 border">
-          <span class="shrink-0">${m.avatar || '🙏'}</span>
+          <span class="shrink-0">${this._esc(m.avatar || '🙏')}</span>
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-1">
               <span class="font-black ${roleColor} truncate">${benchTag}${this._esc(m.sender)}${peerTag}</span>
@@ -322,7 +362,17 @@ export class WorldChatBarUI {
         </div>
       `;
     }).join('');
-    listEl.scrollTop = listEl.scrollHeight;
+
+    const jumpLatestBtn = this.root.querySelector('#wc-jump-latest');
+    if (forceScrollBottom || !hadPreviousContent || (wasAtBottom && !this._userScrolledUp)) {
+      listEl.scrollTop = listEl.scrollHeight;
+      this._userScrolledUp = false;
+      jumpLatestBtn?.classList.add('hidden');
+    } else {
+      // 玩家正在往回翻閱先前紀錄：穩穩停在原本閱讀高度，並顯示可手動點擊的「↓ 有新紀錄」浮動按鈕！
+      listEl.scrollTop = prevScrollTop;
+      jumpLatestBtn?.classList.remove('hidden');
+    }
   }
 
   _esc(str) {

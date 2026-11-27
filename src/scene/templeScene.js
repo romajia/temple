@@ -56,6 +56,15 @@ export class TempleSceneController {
     this.occlusionTimer = 0;
     this.cachedHitGroups = new Set();
     this.isMobileDevice = window.innerWidth <= 900 || 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+    // ★ V51 手機／桌機 3D 同屏遠端香客渲染上限保護（手機 15 位、桌機 30 位；上方真人總數仍如實顯示全場人數！）
+    this.maxRenderedRemotePeers = this.isMobileDevice ? 15 : 30;
+    // ★ V1.1 狀態：後埕雞蛋、廟埕掉落香腳、奉茶壺與手機對話鏡頭避讓
+    this.eggItems = [];
+    this.stubItems = [];
+    this.eggSpawnTimer = 0;
+    this.dialogueShiftActive = false;
+    this.holdingTeapot = false;
+    window.__deciScene = this;
 
     if (!callbacks.deferInit) {
       this._initSync(callbacks.initialState || {});
@@ -69,9 +78,12 @@ export class TempleSceneController {
     this._initTemple(initialState);
     this.atmosphere = new DayNightAtmosphere(this.scene, this.lights, this.refs);
     this._initPlayerAvatar(initialState?.playerPresetId || 'youngMale');
-    this.npcManager = new TempleNPCManager(this.scene, this.collision);
+    this.npcManager = new TempleNPCManager(this.scene, this.collision, {
+      maxRenderedPeers: this.maxRenderedRemotePeers
+    });
     this._initParticles();
     this._initGroundRipple();
+    this._initCollectibles();
     this._initControlsAndEvents();
     this._seedInitialCenserIncense();
 
@@ -104,7 +116,10 @@ export class TempleSceneController {
     onProgress?.(88, '正在迎接廟公阿財伯與同場線上香客…');
     await nextFrame();
     this._initPlayerAvatar(initialState?.playerPresetId || 'youngMale');
-    this.npcManager = new TempleNPCManager(this.scene, this.collision);
+    this.npcManager = new TempleNPCManager(this.scene, this.collision, {
+      maxRenderedPeers: this.maxRenderedRemotePeers
+    });
+    this._initCollectibles();
     this._initControlsAndEvents();
 
     onProgress?.(96, '正在渲染第一幀大廟全景…');
@@ -282,11 +297,194 @@ export class TempleSceneController {
   }
 
   _initPlayerAvatar(presetId) {
-    this.player = new ChibiAvatar({ presetId, label: '' });
+    // ★ V1.1 手機端比例微縮 (0.86x)，讓大殿與廟埕空間更開闊舒適！
+    this.player = new ChibiAvatar({ presetId, label: '', scaleMultiplier: 0.86 });
     this.player.root.position.set(0, 0.03, 19.5);
     this.player.root.rotation.y = Math.PI;
     this.prevPlayerPos.copy(this.player.root.position);
     this.scene.add(this.player.root);
+  }
+
+  _makeCollectibleSprite(label, bgColor = '#FEF3C7', borderColor = '#D97706') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 180;
+    canvas.height = 68;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(8, 8, 164, 52, 26);
+    ctx.fill();
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.fillStyle = '#5A1A0C';
+    ctx.font = '900 28px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 90, 35);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex,
+      transparent: true,
+      depthTest: false,
+      toneMapped: false
+    }));
+    sp.scale.set(1.38, 0.52, 1);
+    sp.renderOrder = 28;
+    return sp;
+  }
+
+  _initCollectibles() {
+    if (!this.refs?.collectiblesGroup) return;
+    // 開場於廟後埕母雞附近預先生出 2 顆新鮮發光土雞蛋（上限 3 顆，每 22 秒自動再生！）
+    this._spawnEggNearHen(0);
+    this._spawnEggNearHen(1);
+  }
+
+  _spawnEggNearHen(forcedIdx = null) {
+    if (!this.refs?.collectiblesGroup || this.eggItems.length >= 3) return;
+    const hens = this.refs.chickens || [];
+    const hen = hens.length > 0 ? hens[forcedIdx !== null ? (forcedIdx % hens.length) : Math.floor(Math.random() * hens.length)] : null;
+    const box = hen?.userData?.lawnBox || { minX: -12.4, maxX: -7.4, minZ: -21.8, maxZ: -19.9 };
+    const rawX = hen ? hen.position.x + (Math.random() - 0.5) * 1.8 : (box.minX + box.maxX) * 0.5;
+    const rawZ = hen ? hen.position.z + (Math.random() - 0.5) * 1.2 : (box.minZ + box.maxZ) * 0.5;
+    // ★ V1.2 雞蛋嚴格限定於純草地範圍內（絕不生成於石板人行道上！）
+    const safe = {
+      x: THREE.MathUtils.clamp(rawX, box.minX + 0.35, box.maxX - 0.35),
+      z: THREE.MathUtils.clamp(rawZ, box.minZ + 0.35, box.maxZ - 0.35)
+    };
+    // 避免與現有雞蛋重疊
+    if (this.eggItems.some(e => Math.hypot(e.group.position.x - safe.x, e.group.position.z - safe.z) < 1.15)) {
+      return;
+    }
+
+    const id = `egg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    const group = new THREE.Group();
+    group.position.set(safe.x, 0.04, safe.z);
+
+    // 適度放大的可愛發光土雞蛋（手機端清晰好辨識）
+    const eggMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 12, 12),
+      new THREE.MeshStandardMaterial({
+        color: 0xFFF2D0,
+        emissive: 0xFBBF24,
+        emissiveIntensity: 0.42,
+        roughness: 0.32
+      })
+    );
+    eggMesh.scale.set(0.88, 1.24, 0.88);
+    eggMesh.position.y = 0.22;
+    eggMesh.castShadow = true;
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.28, 0.44, 24),
+      new THREE.MeshBasicMaterial({ color: 0xFDE047, transparent: true, opacity: 0.82, side: THREE.DoubleSide, toneMapped: false })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.04;
+
+    const badge = this._makeCollectibleSprite('🥚 撿雞蛋', '#FFFBEB', '#D97706');
+    badge.position.y = 0.92;
+
+    // 加大透明觸控球熱區（直徑 1.45m，手機拇指一碰就中！）
+    const hitbox = new THREE.Mesh(
+      new THREE.SphereGeometry(0.75, 10, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    );
+    hitbox.position.y = 0.45;
+    hitbox.userData = { collectibleType: 'egg', itemId: id };
+
+    group.add(eggMesh, ring, badge, hitbox);
+    this.refs.collectiblesGroup.add(group);
+    this.eggItems.push({ id, group, eggMesh, ring, badge, hitbox, phase: Math.random() * Math.PI * 2 });
+  }
+
+  /**
+   * ★ V1.1 廟公「撿香腳」任務：於廟前廣場生成發光掉落香腳（各玩家獨立可見與拾取！）
+   */
+  syncIncenseStubs(active, remainingCount = 4) {
+    if (!this.refs?.collectiblesGroup) return;
+    // 清除既有香腳
+    this.stubItems.forEach((st) => this.refs.collectiblesGroup.remove(st.group));
+    this.stubItems = [];
+    if (!active || remainingCount <= 0) return;
+
+    // ★ V1.2 掉落香腳改為掉在「廟外天公爐 (0, 15.0)」正周圍（半徑 2.1–2.8m，最寫實自然！）
+    const spotPool = [
+      [-2.15, 14.35],
+      [2.25, 14.40],
+      [-1.85, 16.85],
+      [2.05, 16.80],
+      [0.25, 17.45],
+      [-2.55, 15.75]
+    ];
+    for (let i = 0; i < Math.min(remainingCount, spotPool.length); i++) {
+      const [sx, sz] = spotPool[i];
+      const id = `stub-${i}-${Date.now()}`;
+      const group = new THREE.Group();
+      group.position.set(sx, 0.04, sz);
+
+      // 加大顯眼的紅腳香枝（方便手機一眼看清）
+      const stick = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.032, 0.032, 0.62, 8),
+        new THREE.MeshStandardMaterial({ color: 0xDC2626, emissive: 0xEF4444, emissiveIntensity: 0.35, roughness: 0.5 })
+      );
+      stick.rotation.z = Math.PI / 2 - 0.14;
+      stick.rotation.y = i * 1.1;
+      stick.position.y = 0.09;
+
+      const ashTip = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.028, 0.028, 0.24, 6),
+        new THREE.MeshStandardMaterial({ color: 0xD6C7A9, roughness: 0.9 })
+      );
+      ashTip.rotation.z = Math.PI / 2 - 0.14;
+      ashTip.rotation.y = i * 1.1;
+      ashTip.position.set(Math.cos(i * 1.1) * 0.28, 0.11, -Math.sin(i * 1.1) * 0.28);
+
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.32, 0.48, 24),
+        new THREE.MeshBasicMaterial({ color: 0xFB923C, transparent: true, opacity: 0.85, side: THREE.DoubleSide, toneMapped: false })
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.04;
+
+      const badge = this._makeCollectibleSprite('🧹 撿香腳', '#FFF7ED', '#EA580C');
+      badge.position.y = 0.86;
+
+      const hitbox = new THREE.Mesh(
+        new THREE.SphereGeometry(0.80, 10, 8),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      hitbox.position.y = 0.42;
+      hitbox.userData = { collectibleType: 'stub', itemId: id };
+
+      group.add(stick, ashTip, ring, badge, hitbox);
+      this.refs.collectiblesGroup.add(group);
+      this.stubItems.push({ id, group, ring, badge, hitbox, phase: i * 1.3 });
+    }
+  }
+
+  _pickupCollectible(type, itemId) {
+    if (type === 'egg') {
+      const idx = this.eggItems.findIndex(e => e.id === itemId);
+      if (idx === -1) return;
+      const item = this.eggItems[idx];
+      const worldPos = item.group.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+      this.refs.collectiblesGroup.remove(item.group);
+      this.eggItems.splice(idx, 1);
+      this.particles.spawnBlessingBurst(worldPos, 18, 0xFDE047);
+      this.callbacks.onCollectEgg?.();
+    } else if (type === 'stub') {
+      const idx = this.stubItems.findIndex(s => s.id === itemId);
+      if (idx === -1) return;
+      const item = this.stubItems[idx];
+      const worldPos = item.group.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+      this.refs.collectiblesGroup.remove(item.group);
+      this.stubItems.splice(idx, 1);
+      this.particles.spawnBlessingBurst(worldPos, 16, 0xFB923C);
+      this.callbacks.onCollectIncenseStub?.();
+    }
   }
 
   _initParticles() {
@@ -303,6 +501,19 @@ export class TempleSceneController {
     );
     // ★ 正殿主神香爐燒香：緩緩搖曳上升的莊嚴香煙！
     this.particles.addSmokeEmitter(() => this.refs.mainCenserSmokePos, 0.24, 1.05, 0.24);
+    // ★ V1.2 桌下虎爺香爐與五營旗香爐（插香後即見嫋嫋輕煙！）
+    this.particles.addSmokeEmitter(
+      () => (this.refs.tigerIncenseGroup?.children.length > 0 ? this.refs.tigerSmokePos : null),
+      0.34,
+      0.62,
+      0.12
+    );
+    this.particles.addSmokeEmitter(
+      () => (this.refs.fiveCampIncenseGroup?.children.length > 0 ? this.refs.fiveCampSmokePos : null),
+      0.32,
+      0.72,
+      0.14
+    );
     this.particles.setFurnaceOrigin(this.refs.furnaceOrigin);
   }
 
@@ -411,6 +622,101 @@ export class TempleSceneController {
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
+    // ★ V1.1 優先層 1：點擊後埕發光土雞蛋或廟埕掉落香腳（擴大熱區，不誤觸移動！）
+    const collectibleMeshes = [
+      ...this.eggItems.map(e => e.hitbox),
+      ...this.stubItems.map(s => s.hitbox)
+    ].filter(m => m && this._isObjectVisibleInHierarchy(m));
+    if (collectibleMeshes.length > 0) {
+      const cHits = this.raycaster.intersectObjects(collectibleMeshes, false);
+      if (cHits.length > 0) {
+        const { collectibleType, itemId } = cHits[0].object.userData || {};
+        const targetGroup = cHits[0].object.parent;
+        if (collectibleType && itemId && targetGroup) {
+          const p = this.player.root.position;
+          const dist = Math.hypot(p.x - targetGroup.position.x, p.z - targetGroup.position.z);
+          if (dist <= 3.8) {
+            this._pickupCollectible(collectibleType, itemId);
+          } else {
+            this.walkToWorldPoint(targetGroup.position.x, targetGroup.position.z, () => {
+              this._pickupCollectible(collectibleType, itemId);
+            });
+          }
+          return;
+        }
+      }
+    }
+
+    // ★ V1.3 優先層 1.5：點擊草坪上的放山母雞（抓雞會驚動母雞逃跑並扣除功德！）
+    const chickenHitboxes = (this.refs?.chickens || [])
+      .map(h => h.userData?.hitbox)
+      .filter(m => m && this._isObjectVisibleInHierarchy(m));
+    if (chickenHitboxes.length > 0) {
+      const chHits = this.raycaster.intersectObjects(chickenHitboxes, false);
+      if (chHits.length > 0) {
+        const hen = chHits[0].object.parent;
+        if (hen?.userData) {
+          const box = hen.userData.lawnBox || { minX: -12.4, maxX: -7.4, minZ: -21.8, maxZ: -19.9 };
+          hen.userData.scaredTimer = 2.0;
+          hen.userData.waitTimer = 0;
+          hen.userData.targetX = box.minX + 0.3 + Math.random() * Math.max(0.5, box.maxX - box.minX - 0.6);
+          hen.userData.targetZ = box.minZ + 0.3 + Math.random() * Math.max(0.5, box.maxZ - box.minZ - 0.6);
+          this.particles.spawnBlessingBurst(hen.position.clone().add(new THREE.Vector3(0, 0.5, 0)), 10, 0xFCA5A5);
+          this.callbacks.onCatchChicken?.();
+          return;
+        }
+      }
+    }
+
+    // ★ V1.1 優先層 2：直接點擊在線真人玩家或任務／互動 NPC（手機拇指輕鬆點擊！）
+    const actorMeshes = this.npcManager?.getClickableActorMeshes?.() || [];
+    if (actorMeshes.length > 0) {
+      const aHits = this.raycaster.intersectObjects(actorMeshes, false);
+      if (aHits.length > 0) {
+        const meta = aHits[0].object.userData || {};
+        if (meta.actorType === 'peer') {
+          const peerEntry = this.npcManager.getRemotePeerByUid(meta.peerUid || meta.peerId);
+          if (peerEntry) {
+            this.callbacks.onPeerClick?.({
+              id: peerEntry.id,
+              uid: peerEntry.uid,
+              name: peerEntry.name,
+              presetId: peerEntry.presetId
+            });
+            return;
+          }
+        } else if (meta.actorType === 'npc' && meta.npcId) {
+          const npc = this.npcManager.getNpcById(meta.npcId);
+          if (npc) {
+            const np = npc.avatar.root.position;
+            const pp = this.player.root.position;
+            const dist = Math.hypot(pp.x - np.x, pp.z - np.z);
+            if (dist <= 3.8) {
+              this.faceNPC(meta.npcId);
+              this.callbacks.onNpcClick?.(meta.npcId);
+            } else {
+              // ★ V36 阿財伯站於服務台後方、淑芬移至左側開闊走道 (-6.85, 6.75)，點擊淑芬直接走到其前方 (-5.65, 6.75) 絕不誤觸奉茶框！
+              const targetX = meta.npcId === 'keeper'
+                ? TEMPLE_CONFIG.zones.serviceDesk.standPos[0]
+                : meta.npcId === 'shufen'
+                  ? -5.65
+                  : np.x;
+              const targetZ = meta.npcId === 'keeper'
+                ? TEMPLE_CONFIG.zones.serviceDesk.standPos[2]
+                : meta.npcId === 'shufen'
+                  ? 6.75
+                  : np.z + 1.2;
+              this.walkToWorldPoint(targetX, targetZ, () => {
+                this.faceNPC(meta.npcId);
+                this.callbacks.onNpcClick?.(meta.npcId);
+              });
+            }
+            return;
+          }
+        }
+      }
+    }
+
     const objHits = this.raycaster.intersectObjects(this.interactiveObjects, true);
     for (const hit of objHits) {
       if (!this._isObjectVisibleInHierarchy(hit.object)) continue;
@@ -421,9 +727,35 @@ export class TempleSceneController {
             this.walkOutsideHall();
           } else if (cur.userData.zoneId === 'kneelMat') {
             this.walkToWorldPoint(hit.point.x, hit.point.z);
+          } else if (cur.userData.zoneId === 'bench') {
+            // ★ V38 四張象棋板凳全開放：優先鎖定「所點擊的那張板凳 (benchSide)」上離點擊點最近的空位，走過去自動入座！
+            const clickPt = { x: hit.point.x, z: hit.point.z };
+            const clickedSide = cur.userData.benchSide || null;
+            const picked = this._findNearestEmptyChessSeat(clickPt, clickedSide);
+            if (!picked) {
+              this.player.showSpeechBubble('大榕樹象棋板凳都坐滿囉，旁邊樹蔭長椅還有空位喔😊', 2.6);
+              return;
+            }
+            const [ax, az] = picked.approach || TEMPLE_CONFIG.zones.bench.standPos;
+            this.walkToWorldPoint(ax, az, () => {
+              const sat = this.setPlayerSitOnBench(null, { x: picked.pos[0], z: picked.pos[2] }, picked.side);
+              if (sat) this.callbacks.onBenchSeated?.('大榕樹板凳聊天');
+            });
           } else if (cur.userData.zoneId === 'sideBench') {
             const sb = SIDE_BENCHES.find(b => b.id === cur.userData.benchId);
-            if (sb) this.walkToWorldPoint(sb.standPos[0], sb.standPos[2]);
+            if (sb) {
+              const clickPt = { x: hit.point.x, z: hit.point.z };
+              this.walkToWorldPoint(sb.standPos[0], sb.standPos[2], () => {
+                const sat = this.setPlayerSitOnBench(sb, clickPt);
+                if (sat) this.callbacks.onBenchSeated?.(sb.name || '樹蔭板凳聊天');
+              });
+            }
+          } else if (cur.userData.zoneId === 'offeringTable') {
+            const goRight = cur.userData.offeringSide === 'right' || hit.point.x > 0;
+            const ringPos = goRight
+              ? (TEMPLE_CONFIG.zones.offeringTable.extraStandPositions?.[0]?.pos || [3.85, 0, -4.12])
+              : TEMPLE_CONFIG.zones.offeringTable.standPos;
+            this.walkToWorldPoint(ringPos[0], ringPos[2]);
           } else {
             this.walkToZone(cur.userData.zoneId);
           }
@@ -564,7 +896,7 @@ export class TempleSceneController {
     this.walkToWorldPoint(0, 12.2);
   }
 
-  setDayNightMode(mode) { this.atmosphere.setMode(mode); }
+  setDayNightMode(mode, immediate = false) { this.atmosphere.setMode(mode, immediate); }
   toggleDayNightMode() { return this.atmosphere.toggleMode(); }
 
   /**
@@ -662,14 +994,22 @@ export class TempleSceneController {
       this.feedPellets.push(m);
     }
 
-    // 產生 4 道水波擴散漣漪
+    // 產生 4 道柔焦羽化水波擴散漣漪
+    const feedRipTex = this.refs.pondRipples?.[0]?.material?.map || null;
     for (let i = 0; i < 4; i++) {
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.08, 0.14, 18),
-        new THREE.MeshBasicMaterial({ color: 0xE0F2FE, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+        new THREE.PlaneGeometry(0.32, 0.32),
+        new THREE.MeshBasicMaterial({
+          map: feedRipTex || undefined,
+          color: 0xE0F2FE,
+          transparent: true,
+          opacity: 0.75,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
       );
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(tx + (Math.random() - 0.5) * 0.5, 0.235, tz + (Math.random() - 0.5) * 0.5);
+      ring.position.set(tx + (Math.random() - 0.5) * 0.5, 0.238, tz + (Math.random() - 0.5) * 0.5);
       ring.userData = { age: -i * 0.45 };
       feedGroup.add(ring);
       this.feedRipples.push(ring);
@@ -701,7 +1041,11 @@ export class TempleSceneController {
   }
 
   applyPlayerPreset(presetId) { this.player.applyPreset(presetId); }
-  setPlayerName(name) { this.player.setName(name); }
+  setPlayerName(name) {
+    this.player.setName(name);
+    // ★ V31 平時隱藏主角頭頂常駐名稱框，保持畫面清爽（說話時仍會顯示頭頂氣泡！）
+    if (this.player.nameTagSprite) this.player.nameTagSprite.visible = false;
+  }
 
   showPlayerBubble(text) {
     this.player.showSpeechBubble(text, 4.5);
@@ -726,9 +1070,56 @@ export class TempleSceneController {
   setGuidedZone(zoneId) { this.guidedZoneId = zoneId; }
   setPlayerHoldingIncense(flag) { this.player.setHoldingIncense(flag); }
 
+  /**
+   * ★ V37 確保角色自棋盤椅／樹蔭板凳起身時，100% 移出椅面與碰撞框之外至安全開闊通行點（徹底杜絕坐下後卡死！）
+   */
+  _stepOutOfCurrentSeat() {
+    const p = this.player.root.position;
+    let outX = p.x;
+    let outZ = p.z;
+    if (this.activeBench) {
+      outX = this.activeBench.standPos[0];
+      outZ = this.activeBench.standPos[2];
+      this.activeBench = null;
+    } else if (this.activeSeatApproach) {
+      outX = this.activeSeatApproach[0];
+      outZ = this.activeSeatApproach[1];
+      this.activeSeatApproach = null;
+    } else if (Math.abs(p.x - (-11.40)) < 2.3 && Math.abs(p.z - 15.10) < 2.6) {
+      // 若在象棋桌四張板凳範圍內，依目前所在方位向外推至寬敞外圍空地
+      const dx = p.x - (-11.40);
+      const dz = p.z - 15.10;
+      if (Math.abs(dx) > Math.abs(dz)) {
+        outX = dx >= 0 ? -8.95 : -13.85;
+        outZ = p.z;
+      } else {
+        outX = p.x;
+        outZ = dz >= 0 ? 17.85 : 12.35;
+      }
+    } else {
+      outX = TEMPLE_CONFIG.zones.bench.standPos[0];
+      outZ = TEMPLE_CONFIG.zones.bench.standPos[2];
+    }
+    // 雙重驗證安全點絕不在碰撞體內，若被擋則回退至開闊安全站位 (-11.40, 18.05)
+    if (this.collision.isBlocked(outX, outZ, 0.45)) {
+      const safe = this.collision.resolveStatic(outX, outZ, 0.46);
+      outX = safe.x;
+      outZ = safe.z;
+      if (Math.abs(outX - (-11.40)) < 1.9 && Math.abs(outZ - 15.10) < 2.1) {
+        outX = TEMPLE_CONFIG.zones.bench.standPos[0];
+        outZ = TEMPLE_CONFIG.zones.bench.standPos[2];
+      }
+    }
+    p.set(outX, this._getFloorY(outX, outZ), outZ);
+  }
+
   walkToWorldPoint(goalX, goalZ, endAction = null) {
     if (this.player.isLockedInAction() || this.movementLocked) return;
     if (this.player.state === 'sit' || this.player.state === 'kneel') {
+      if (this.player.state === 'sit') {
+        this._stepOutOfCurrentSeat();
+      }
+      this.player.setChanting(false);
       this.player.setState('idle');
       this.callbacks.onForcedStandUp?.();
     }
@@ -786,7 +1177,7 @@ export class TempleSceneController {
     };
   }
 
-  // ---- 儀式動畫 ----
+  // ---- 儀式動畫（★ V32 所有儀式事件鏡頭全面轉向角色正面／前側面，比照化金清楚看到角色動作與表情！）----
   playIncensePickupSequence(onComplete) {
     this.setMovementLocked(true);
     const z = TEMPLE_CONFIG.zones.incense;
@@ -794,9 +1185,10 @@ export class TempleSceneController {
     pos.set(z.standPos[0], 0.37, z.standPos[2]);
     this.player.root.rotation.y = -Math.PI * 0.42;
 
+    // 鏡頭轉至角色前側面，清楚看到主角正面點香與手持三柱清香！
     this.enterCloseupCamera(
-      [pos.x + 3.1, pos.y + 2.2, pos.z + 2.6],
-      [pos.x - 0.15, pos.y + 1.12, pos.z]
+      [pos.x - 1.35, pos.y + 1.95, pos.z + 2.85],
+      [pos.x - 0.30, pos.y + 1.15, pos.z]
     );
 
     setTimeout(() => {
@@ -818,7 +1210,7 @@ export class TempleSceneController {
   }
 
   /**
-   * ★ 修正後的天公爐禮儀：站在靠廟那側 (z = 12.85) 面向外 (+Z) 三拜，拜畢直接往前插三柱香！
+   * ★ 修正後的天公爐禮儀：站在靠廟那側 (z = 12.85) 面向外 (+Z) 三拜，鏡頭自前側清楚呈現主角正面三拜與插香！
    */
   playTianGongRitual(onComplete) {
     this.setMovementLocked(true);
@@ -826,10 +1218,9 @@ export class TempleSceneController {
     pos.set(0, 0.03, 12.85);
     this.player.root.rotation.y = 0; // 正面朝向廟外天際與眼前的天公爐 (+Z)
     this.player.showSpeechBubble('靠廟面向天際，誠心三拜玉皇大帝🙏', 2.4);
-    this.enterCloseupCamera([4.8, 4.8, 19.6], [0, 1.4, 14.2]);
+    this.enterCloseupCamera([3.2, 3.0, 17.9], [0, 1.25, 13.7]);
 
     this.player.playThreeBows(() => {
-      // 拜完不必轉身，直接稍微上前一步把三柱清香插入眼前的天公爐！
       pos.set(0, 0.03, 13.32);
       this.player.showSpeechBubble('直接向前插上三柱清香✨', 1.8);
 
@@ -851,22 +1242,50 @@ export class TempleSceneController {
   }
 
   /**
-   * ★ 拜主神與念經分開：立於中央大道 (0, -2.0) 正面神明三拜並插香（無需上拜墊！）
+   * ★ V36 拜主神：明確收起木魚、手持三柱清香下跪三拜主神（只有 36 拜墊念經才持木魚！），長跪墊支援 3 人並肩下跪！
    */
   playMainDeityRitual(onComplete) {
     this.setMovementLocked(true);
+    this.player.setChanting(false);
+    this.player.setHoldingTeapot(false);
+    this.player.setHoldingIncense(true);
     const pos = this.player.root.position;
-    pos.set(0, 0.37, -2.0);
+    const slots = TEMPLE_CONFIG.zones.mainWorship.kneelSlots || [
+      [-0.80, 0.455, -5.08],
+      [0, 0.455, -5.08],
+      [0.80, 0.455, -5.08]
+    ];
+    const occupiedActors = this.npcManager.getAllSeatedAndActiveActors();
+    // 優先選中央，若中央或該格已有其他香客下跪則自動選旁邊空位（最多同時 3 人並肩下跪！）
+    const order = [slots[1] || slots[0], slots[0], slots[2]].filter(Boolean);
+    let pickedSlot = order[0];
+    for (const sl of order) {
+      const taken = occupiedActors.some(a => Math.hypot(a.x - sl[0], a.z - sl[2]) < 0.62);
+      if (!taken) {
+        pickedSlot = sl;
+        break;
+      }
+    }
+    const [sx, sy, sz] = pickedSlot;
+    pos.set(sx, sy, sz);
     this.player.root.rotation.y = Math.PI; // 面向正殿神龕
-    this.player.showSpeechBubble('立於中央大道，虔誠三拜主神🙏', 2.4);
-    this.enterCloseupCamera([3.5, 5.2, 3.6], [0, 2.5, -9.2]);
+    this.player.showSpeechBubble('跪於主神長跪墊上，虔誠三拜主神🙏', 2.4);
+    // 鏡頭置於主角前側面（-Z 前方往回看角色正面！），清楚看見角色正面下跪拜拜！
+    this.enterCloseupCamera([sx + 2.35, 2.05, sz - 2.55], [sx, 1.05, sz]);
 
-    this.player.playThreeBows(() => {
-      this.player.showSpeechBubble('上前插上三柱清香✨', 1.6);
+    this.player.playKneelThreeBows(() => {
+      // 起身踏回大殿地板向前插香
+      pos.set(sx * 0.6, 0.37, -6.15);
+      this.player.setState('idle');
+      this.player.showSpeechBubble('起身向前插上三柱清香✨', 1.6);
+      this.enterCloseupCamera([sx * 0.6 + 2.25, 2.25, -7.75], [sx * 0.6, 1.32, -6.45]);
+
       this.player.playInsertIncense(() => {
         this.insertThreeIncenseSticks('main');
         this.player.setHoldingIncense(false);
         this.particles.spawnBlessingBurst(this.refs.mainCenserSmokePos, 30, 0xFFE066);
+        // 儀式圓滿後退回跪墊正前方可步行走道 (z = -4.15)，絕不踩在跪墊上！
+        pos.set(sx, 0.37, -4.15);
 
         this.cameraMode = 'follow';
         this.closeupGoal = {
@@ -922,44 +1341,74 @@ export class TempleSceneController {
   }
 
   insertThreeIncenseSticks(censerType) {
-    const group = censerType === 'tiangong' ? this.refs.tiangongIncenseGroup : this.refs.mainIncenseGroup;
+    let group = this.refs.mainIncenseGroup;
+    let isMini = false;
+    if (censerType === 'tiangong') group = this.refs.tiangongIncenseGroup;
+    else if (censerType === 'tiger') { group = this.refs.tigerIncenseGroup; isMini = true; }
+    else if (censerType === 'fiveCamps') { group = this.refs.fiveCampIncenseGroup; isMini = true; }
+    if (!group) return;
+
     while (group.children.length > 18) group.remove(group.children[0]);
     const baseAngle = Math.random() * Math.PI * 2;
-    const baseR = Math.random() * 0.18;
+    const baseR = Math.random() * (isMini ? 0.045 : 0.18);
     const cx = Math.cos(baseAngle) * baseR;
     const cz = Math.sin(baseAngle) * baseR;
+    const stickH = isMini ? 0.28 : 0.50;
+    const stickR = isMini ? 0.010 : 0.015;
+    const spread = isMini ? 0.025 : 0.045;
 
-    [-0.045, 0, 0.045].forEach((offset) => {
-      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.50, 6), new THREE.MeshStandardMaterial({ color: 0xB88746 }));
-      const ember = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), new THREE.MeshBasicMaterial({ color: 0xFF6A1A, toneMapped: false }));
-      ember.position.y = 0.25;
+    [-spread, 0, spread].forEach((offset) => {
+      const stick = new THREE.Mesh(
+        new THREE.CylinderGeometry(stickR, stickR, stickH, 6),
+        new THREE.MeshStandardMaterial({ color: 0xB88746 })
+      );
+      const ember = new THREE.Mesh(
+        new THREE.SphereGeometry(isMini ? 0.018 : 0.026, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xFF6A1A, toneMapped: false })
+      );
+      ember.position.y = stickH * 0.5;
       stick.add(ember);
-      stick.position.set(cx + offset, 0.19, cz);
+      stick.position.set(cx + offset, stickH * 0.36, cz);
       group.add(stick);
     });
   }
 
-  setPlayerSitOnBench(benchData = null) {
-    this.activeBench = benchData;
-    this.autoPath = [];
-    // ★ 需求 #12：檢查所有 NPC（包含已坐下的 NPC！）與線上玩家，自動坐到旁邊的空位，絕對不坐在別人身上！
+  _findNearestEmptyChessSeat(targetPt = null, preferredSide = null) {
     const occupiedActors = this.npcManager.getAllSeatedAndActiveActors();
+    const mainSeats = TEMPLE_CONFIG.zones.bench.seats || [{ pos: TEMPLE_CONFIG.zones.bench.sitPos, yaw: 0 }];
+    const refX = targetPt ? targetPt.x : this.player.root.position.x;
+    const refZ = targetPt ? targetPt.z : this.player.root.position.z;
+    const freeSeats = mainSeats.filter(
+      (s) => !occupiedActors.some(a => Math.hypot(a.x - s.pos[0], a.z - s.pos[2]) < 0.62)
+    );
+    if (!freeSeats.length) return null;
+    // 若明確指定點擊了某張板凳（北／南／西／東），優先選擇該張板凳上離點擊點最近的空位！
+    const sidePool = preferredSide ? freeSeats.filter(s => s.side === preferredSide) : [];
+    const pool = sidePool.length ? sidePool : freeSeats;
+    pool.sort((a, b) => Math.hypot(a.pos[0] - refX, a.pos[2] - refZ) - Math.hypot(b.pos[0] - refX, b.pos[2] - refZ));
+    return pool[0];
+  }
+
+  setPlayerSitOnBench(benchData = null, preferredPoint = null, preferredSide = null) {
+    this.activeBench = benchData;
+    this.activeSeatApproach = null;
+    this.autoPath = [];
+    this.player.setChanting(false);
+    // ★ V38 支援點擊指定板凳／空位優先入座該張板凳最近空位，且避開所有已入座 NPC 與線上玩家！
+    const occupiedActors = this.npcManager.getAllSeatedAndActiveActors();
+    const refX = preferredPoint ? preferredPoint.x : this.player.root.position.x;
+    const refZ = preferredPoint ? preferredPoint.z : this.player.root.position.z;
 
     if (benchData) {
       const rawSeats = benchData.seats || [benchData.sitPos];
       const seats = rawSeats.map(s => Array.isArray(s) ? { pos: s, yaw: benchData.faceYaw } : s);
-      let chosen = null;
-      for (const s of seats) {
-        const isTaken = occupiedActors.some(a => Math.hypot(a.x - s.pos[0], a.z - s.pos[2]) < 0.78);
-        if (!isTaken) {
-          chosen = s;
-          break;
-        }
-      }
-      if (!chosen) {
+      const free = seats.filter(s => !occupiedActors.some(a => Math.hypot(a.x - s.pos[0], a.z - s.pos[2]) < 0.62));
+      if (!free.length) {
         this.player.showSpeechBubble('這張椅子坐滿囉，去旁邊的板凳坐吧😊', 2.4);
-        return;
+        return false;
       }
+      free.sort((a, b) => Math.hypot(a.pos[0] - refX, a.pos[2] - refZ) - Math.hypot(b.pos[0] - refX, b.pos[2] - refZ));
+      const chosen = free[0];
       this.player.root.position.set(chosen.pos[0], 0.03, chosen.pos[2]);
       this.player.root.rotation.y = chosen.yaw;
       this.player.setState('sit');
@@ -969,27 +1418,23 @@ export class TempleSceneController {
         [chosen.pos[0] + camDx + 1.4, 4.6, chosen.pos[2] + camDz + 1.4],
         [chosen.pos[0], 1.1, chosen.pos[2]]
       );
-      return;
+      return true;
     }
 
-    // 廟前大榕樹板凳區同樣自動尋找未被佔用的旁邊空位！
-    const mainSeats = TEMPLE_CONFIG.zones.bench.seats || [{ pos: TEMPLE_CONFIG.zones.bench.sitPos, yaw: 0 }];
-    let chosenMain = null;
-    for (const s of mainSeats) {
-      const isTaken = occupiedActors.some(a => Math.hypot(a.x - s.pos[0], a.z - s.pos[2]) < 0.78);
-      if (!isTaken) {
-        chosenMain = s;
-        break;
-      }
-    }
+    // ★ V38 廟前大榕樹象棋四張板凳：優先坐上所點擊／靠近的那張板凳最近空位！
+    const chosenMain = this._findNearestEmptyChessSeat(preferredPoint, preferredSide);
     if (!chosenMain) {
       this.player.showSpeechBubble('大榕樹板凳坐滿囉，廟旁樹下還有雙人長椅喔😊', 2.6);
-      return;
+      return false;
     }
+    this.activeSeatApproach = chosenMain.approach || null;
     this.player.root.position.set(chosenMain.pos[0], 0.03, chosenMain.pos[2]);
     this.player.root.rotation.y = chosenMain.yaw;
     this.player.setState('sit');
-    this.enterCloseupCamera([-10.2, 4.8, 20.8], [chosenMain.pos[0], 1.1, chosenMain.pos[2]]);
+    const camX = -11.40 + (chosenMain.pos[0] - (-11.40)) * 0.55 + 1.2;
+    const camZ = 15.10 + (chosenMain.pos[2] - 15.10) * 1.4 + 4.8;
+    this.enterCloseupCamera([camX, 4.8, camZ], [-11.40, 1.05, 15.10]);
+    return true;
   }
 
   setPlayerKneelOnMat(mat = null) {
@@ -999,19 +1444,26 @@ export class TempleSceneController {
     this.player.root.position.set(targetMat.x, 0.37, targetMat.z);
     this.player.root.rotation.y = Math.PI;
     this.player.setState('kneel');
-    this.enterCloseupCamera([targetMat.x + 0.6, 4.2, targetMat.z + 5.6], [0, 2.8, -10.4]);
+    // ★ V34 拜墊念經時左手端捧木魚、右手執槌敲打！
+    this.player.setChanting(true);
+    // ★ V32 轉至前側面視角，清楚看見角色虔誠跪坐敲木魚念經的正面模樣！
+    const sideSign = targetMat.x >= 0 ? -1 : 1;
+    this.enterCloseupCamera([targetMat.x + sideSign * 2.15, 2.15, targetMat.z - 2.65], [targetMat.x, 0.95, targetMat.z]);
+  }
+
+  playPlayerWoodenFishTap() {
+    if (!this.player) return;
+    this.player.triggerWoodenFishTap();
+    const pos = this.player.getWoodenFishWorldPos();
+    this.particles?.spawnBlessingBurst(pos, 10, 0xFDE047);
   }
 
   standUpPlayer() {
     const p = this.player.root.position;
     if (this.player.state === 'sit') {
-      if (this.activeBench) {
-        p.set(this.activeBench.standPos[0], 0.03, this.activeBench.standPos[2]);
-        this.activeBench = null;
-      } else {
-        p.set(TEMPLE_CONFIG.zones.bench.standPos[0], 0.03, TEMPLE_CONFIG.zones.bench.standPos[2]);
-      }
+      this._stepOutOfCurrentSeat();
     }
+    this.player.setChanting(false);
     this.player.setState('idle');
     this.cameraMode = 'follow';
     this.closeupGoal = {
@@ -1022,7 +1474,273 @@ export class TempleSceneController {
   }
 
   faceNPC(npcId) { this.npcManager.facePlayer(npcId, this.player.root.position); }
-  syncRemotePeers(list) { this.npcManager.syncRemotePeers(list); }
+  syncRemotePeers(list) { this.npcManager.syncRemotePeers(list, this.player?.root?.position || null); }
+  getRemotePeerRenderStats() {
+    return this.npcManager?.getRemotePeerRenderStats?.() || {
+      rendered: 0,
+      totalRemote: 0,
+      cap: this.maxRenderedRemotePeers,
+      capped: false
+    };
+  }
+  updateNpcQuestMarkers(states) { this.npcManager?.updateQuestMarkers?.(states); }
+
+  // ★ V1.1 奉茶拿壺／神桌倒清茶三杯儀式
+  setPlayerHoldingTeapot(hasPot) {
+    this.holdingTeapot = Boolean(hasPot);
+    this.player?.setHoldingTeapot(this.holdingTeapot);
+    if (this.refs?.stationTeapot) {
+      this.refs.stationTeapot.visible = !this.holdingTeapot;
+    }
+  }
+
+  playPourTeaSequence(onComplete) {
+    this._teaPourInProgress = true;
+    this.setMovementLocked(true);
+    const pos = this.player.root.position;
+    // ★ V32 角色站於左側清爽空地 (x = -1.32, z = -7.28，與桌下虎爺神龕保持充裕間距絕不穿模！)，鏡頭從前側框進角色正面、傾斜白鐵水壺與金色茶水柱！
+    const stayX = pos.x < -0.5 ? THREE.MathUtils.clamp(pos.x, -1.55, -1.22) : -1.32;
+    const stayZ = THREE.MathUtils.clamp(pos.z, -7.35, -7.05);
+    pos.set(stayX, 0.37, stayZ);
+    this.player.root.rotation.y = Math.atan2(0 - pos.x, -8.36 - pos.z);
+    this.setPlayerHoldingTeapot(true);
+    if (this.player.teapotGroup) this.player.teapotGroup.visible = false;
+    this.player.showSpeechBubble('誠心為神明添滿清茶三杯 🍵✨', 3.2);
+    this.enterCloseupCamera([1.65, 2.24, -6.95], [-0.45, 1.50, -8.02]);
+
+    // 建立精緻可視化「台灣白鐵大水壺（含彎曲壺嘴與黑電木提把）」於三杯上方緩緩傾斜倒茶！
+    const pouringKettle = new THREE.Group();
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0xE6EEF5, metalness: 0.78, roughness: 0.18 });
+    const steelLidMat = new THREE.MeshStandardMaterial({ color: 0xF5F8FC, metalness: 0.82, roughness: 0.14 });
+    const bakeliteMat = new THREE.MeshStandardMaterial({ color: 0x1F2428, roughness: 0.45 });
+    const kBody = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.145, 0.19, 18), steelMat);
+    const kShoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.115, 0.045, 18), steelMat);
+    kShoulder.position.y = 0.115;
+    const kLid = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.086, 0.024, 16), steelLidMat);
+    kLid.position.y = 0.146;
+    const kKnob = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), bakeliteMat);
+    kKnob.position.y = 0.172;
+    const kBand = new THREE.Mesh(new THREE.TorusGeometry(0.128, 0.008, 6, 20), steelLidMat);
+    kBand.rotation.x = Math.PI / 2;
+    kBand.position.y = 0.04;
+    // 朝向 +X（右方三杯方向）彎曲白鐵壺嘴
+    const spCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.11, -0.02, 0),
+      new THREE.Vector3(0.19, 0.03, 0),
+      new THREE.Vector3(0.24, 0.11, 0)
+    ]);
+    const kSpout = new THREE.Mesh(new THREE.TubeGeometry(spCurve, 12, 0.017, 8, false), steelMat);
+    // 上方黑電木提把
+    const kBail = new THREE.Mesh(new THREE.TorusGeometry(0.132, 0.013, 6, 16, Math.PI), bakeliteMat);
+    kBail.position.y = 0.12;
+    pouringKettle.add(kBody, kShoulder, kLid, kKnob, kBand, kSpout, kBail);
+    pouringKettle.scale.setScalar(1.25);
+    pouringKettle.position.set(-0.74, 1.94, -8.36);
+    pouringKettle.rotation.y = -0.22; // 微轉壺身讓彎曲壺嘴與金色茶水柱在正面鏡頭下完全清楚展開！
+    pouringKettle.rotation.z = -0.58;
+    this.scene.add(pouringKettle);
+
+    // 建立可視化「金黃熱茶水流」精準由壺嘴直落注入第 1 → 第 2 → 第 3 杯清茶！
+    const streamMat = new THREE.MeshBasicMaterial({
+      color: 0xF5B942,
+      transparent: true,
+      opacity: 0.90,
+      toneMapped: false
+    });
+    const teaStream = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.022, 0.34, 8), streamMat);
+    teaStream.visible = false;
+    this.scene.add(teaStream);
+
+    const cupWorldX = [-0.42, 0, 0.42];
+    const cupZ = -8.36;
+    const liqs = this.refs.teaLiquids || [];
+    liqs.forEach(l => {
+      l.visible = false;
+      l.position.y = 0.068;
+    });
+
+    this.player.playPourTea();
+    const pourDurationMs = 3200;
+    const startedAt = performance.now();
+
+    const stepPour = () => {
+      const elapsedMs = performance.now() - startedAt;
+      const t = Math.min(1, elapsedMs / pourDurationMs);
+      const cupIdx = Math.min(2, Math.floor(t * 3));
+      const cupFrac = (t * 3) - cupIdx;
+      const cx = cupWorldX[cupIdx];
+
+      // 白鐵水壺平滑滑移至當前茶杯左側上方並傾斜注茶（壺嘴精準銜接茶水柱！）
+      const targetKX = cx - 0.32;
+      pouringKettle.position.x += (targetKX - pouringKettle.position.x) * 0.24;
+      pouringKettle.position.y = 1.92 + Math.sin(cupFrac * Math.PI) * 0.03;
+      pouringKettle.rotation.z = -0.46 - Math.sin(cupFrac * Math.PI) * 0.22;
+
+      teaStream.visible = t > 0.06 && t < 0.96;
+      teaStream.position.set(cx - 0.02, 1.71, cupZ);
+      teaStream.rotation.z = -0.14;
+      for (let prev = 0; prev < cupIdx; prev++) {
+        if (liqs[prev]) {
+          liqs[prev].visible = true;
+          liqs[prev].position.y = 0.178;
+        }
+      }
+      if (liqs[cupIdx]) {
+        liqs[cupIdx].visible = true;
+        liqs[cupIdx].position.y = 0.068 + 0.110 * Math.min(1, cupFrac);
+      }
+      if (Math.random() < 0.35) {
+        this.particles.spawnBlessingBurst(new THREE.Vector3(cx, 1.58, cupZ), 3, 0xFDE68A);
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(stepPour);
+      } else {
+        this.scene.remove(teaStream);
+        teaStream.geometry.dispose();
+        streamMat.dispose();
+        this.scene.remove(pouringKettle);
+        pouringKettle.traverse((ch) => {
+          if (ch.isMesh) ch.geometry?.dispose();
+        });
+        steelMat.dispose();
+        steelLidMat.dispose();
+        bakeliteMat.dispose();
+        liqs.forEach(l => {
+          l.visible = true;
+          l.position.y = 0.178;
+        });
+        this.particles.spawnBlessingBurst(this.refs.teaCupsWorldPos, 24, 0xFDE68A);
+        this.setPlayerHoldingTeapot(false);
+        this.cameraMode = 'follow';
+        this.closeupGoal = {
+          pos: new THREE.Vector3(pos.x, pos.y + 1.35, pos.z).add(this.savedFollowOffset),
+          target: new THREE.Vector3(pos.x, pos.y + 1.35, pos.z),
+          releaseOnDone: true
+        };
+        this.setMovementLocked(false);
+        this._teaPourInProgress = false;
+        onComplete?.();
+      }
+    };
+    requestAnimationFrame(stepPour);
+  }
+
+  // ★ V34 同步主神桌「清茶三杯」10 分鐘自動消失狀態（過期自動撤去杯中茶水！）
+  syncTeaOffer(teaState = null) {
+    if (this._teaPourInProgress) return;
+    const hasTea = Boolean(teaState && Number(teaState.pouredAt) > 0);
+    (this.refs?.teaLiquids || []).forEach((l) => {
+      l.visible = hasTea;
+      l.position.y = hasTea ? 0.178 : 0.068;
+    });
+  }
+
+  // ★ V33 桌下虎爺（黑虎將軍）無遮擋正面特寫鏡頭：全程鎖定神桌與虎爺不透明，絕不因站位或視線射線變透明！
+  focusTigerDeityCloseup(active) {
+    this.tigerFocusActive = Boolean(active);
+    if (this.refs?.offeringTableGroup) {
+      this.refs.offeringTableGroup.visible = !active;
+    }
+    if (this.offeringsManager?.group) {
+      this.offeringsManager.group.visible = !active;
+    }
+    if (active) {
+      // 鏡頭置於神桌正前方無遮擋處，焦點略低讓精雕黑虎將軍、三顆雞蛋與虎爺香爐完整呈現在畫面中上半部！
+      this.enterCloseupCamera([0, 1.06, -5.85], [0, 0.56, -8.10]);
+    } else {
+      const pos = this.player.root.position;
+      this.cameraMode = 'follow';
+      const target = this.inIndoorView
+        ? this._getIndoorTargetForPlayer(pos)
+        : new THREE.Vector3(pos.x, pos.y + 1.35, pos.z);
+      this.closeupGoal = {
+        pos: target.clone().add(this.savedFollowOffset),
+        target,
+        releaseOnDone: true
+      };
+    }
+  }
+
+  syncTigerEggs(eggList = []) {
+    const count = Array.isArray(eggList) ? eggList.length : 0;
+    (this.refs?.tigerEggMeshes || []).forEach((mesh, idx) => {
+      mesh.visible = idx < count;
+    });
+  }
+
+  // ★ V36 拜虎爺純插香 與 純獻蛋完全分開（獻蛋不再自動插香！）
+  playTigerWorshipWithIncense(withEgg = false) {
+    this.insertThreeIncenseSticks('tiger');
+    this.particles.spawnBlessingBurst(this.refs.tigerSmokePos, 24, 0xFFD966);
+    if (withEgg) {
+      this.particles.spawnBlessingBurst(new THREE.Vector3(0.56, 0.64, -7.64), 24, 0xFDE047);
+      this.player?.showSpeechBubble('誠心拜虎爺、插香並獻上新鮮土雞蛋 🐯🥚', 2.8);
+    } else {
+      this.player?.showSpeechBubble('誠心向黑虎將軍上香祈福 🐯🙏', 2.6);
+    }
+  }
+
+  playTigerEggOfferOnly() {
+    this.particles.spawnBlessingBurst(new THREE.Vector3(0.56, 0.64, -7.64), 26, 0xFDE047);
+    this.player?.showSpeechBubble('誠心向黑虎將軍獻上新鮮土雞蛋 🐯🥚', 2.8);
+  }
+
+  // ★ V32 參拜五營旗：鏡頭轉至角色前側面，清楚呈現主角正面三拜五營將軍並插香！
+  playFiveCampsRitual(onComplete) {
+    this.setMovementLocked(true);
+    const pos = this.player.root.position;
+    pos.set(-4.15, 0.37, -7.2);
+    this.player.root.rotation.y = Math.PI;
+    this.player.setHoldingIncense(true);
+    this.player.showSpeechBubble('誠心參拜五營將軍，護境安民 🚩🙏', 2.4);
+    this.enterCloseupCamera([-2.15, 2.25, -8.02], [-4.15, 1.28, -7.45]);
+
+    this.player.playThreeBows(() => {
+      this.player.playInsertIncense(() => {
+        this.insertThreeIncenseSticks('fiveCamps');
+        this.player.setHoldingIncense(false);
+        this.particles.spawnBlessingBurst(this.refs.fiveCampSmokePos, 26, 0x86EFAC);
+        this.cameraMode = 'follow';
+        this.closeupGoal = {
+          pos: new THREE.Vector3(pos.x, pos.y + 1.35, pos.z).add(this.savedFollowOffset),
+          target: new THREE.Vector3(pos.x, pos.y + 1.35, pos.z),
+          releaseOnDone: true
+        };
+        this.setMovementLocked(false);
+        onComplete?.();
+      });
+    });
+  }
+
+  // ★ V1.1 手機端開啟 NPC 對話框時微幅調整鏡頭焦點，確保人物位於螢幕中上方可視區絕不被遮擋！
+  setDialogueCameraShift(active) {
+    this.dialogueShiftActive = Boolean(active);
+  }
+
+  // ★ V1.1 玩家＆遠端玩家結緣動作回饋（揮手／作揖／握手）
+  playPlayerEmote(action = 'wave', bubbleText = '') {
+    if (!this.player) return;
+    this.player.playEmote(action);
+    if (bubbleText) this.player.showSpeechBubble(bubbleText, 3.4);
+    const p = this.player.root.position;
+    this.particles.spawnBlessingBurst(new THREE.Vector3(p.x, p.y + 1.5, p.z), 16, 0xFDE047);
+  }
+
+  playRemotePeerEmote(uidOrId, action = 'wave', bubbleText = '') {
+    const entry = this.npcManager?.getRemotePeerByUid?.(uidOrId);
+    if (!entry) return;
+    entry.avatar.playEmote(action);
+    if (bubbleText) entry.avatar.showSpeechBubble(bubbleText, 3.6);
+    const p = entry.avatar.root.position;
+    this.particles.spawnBlessingBurst(new THREE.Vector3(p.x, p.y + 1.5, p.z), 16, 0xFDE047);
+  }
+
+  walkToBackyard() {
+    this.godViewEnabled = false;
+    // 走到後院左側步道邊，一眼就能看見草坪上的放山母雞與發光土雞蛋！
+    this.walkToWorldPoint(-9.2, -18.5);
+  }
 
   triggerBlessingAtZone(zoneId) {
     const z = TEMPLE_CONFIG.zones[zoneId];
@@ -1093,6 +1811,10 @@ export class TempleSceneController {
           const gid = hit.object.userData?.occludeGroupId;
           if (gid) hitGroups.add(gid);
         }
+      }
+      // ★ V33 站於拜黑虎爺位置或虎爺特寫中時，神桌與虎爺神龕永不透明化！
+      if (this.tigerFocusActive || this.activeZoneKey === 'zone:tigerDeity') {
+        hitGroups.delete('shrine-table');
       }
       this.cachedHitGroups = hitGroups;
     }
@@ -1248,21 +1970,44 @@ export class TempleSceneController {
     let found = null;
     let bestDist = Infinity;
 
-    // 1. 偵測各大設施光圈（同時涵蓋 standPos 與攤位周圍，確保從任一角度靠近每日挑戰與供品鋪皆穩定觸發！）
+    // 1. 偵測各大設施光圈（支援左右供桌雙光圈自動判定左／右桌，以及攤位周圍穩定觸發！）
     for (const z of Object.values(TEMPLE_CONFIG.zones)) {
-      const dStand = Math.hypot(pos.x - z.standPos[0], pos.z - z.standPos[2]);
+      const standCandidates = [
+        { pos: z.standPos, side: z.id === 'offeringTable' ? 'left' : null },
+        ...(z.extraStandPositions || [])
+      ];
+      let dStand = Infinity;
+      let matchedSide = null;
+      for (const cand of standCandidates) {
+        const d = Math.hypot(pos.x - cand.pos[0], pos.z - cand.pos[2]);
+        if (d < dStand) {
+          dStand = d;
+          matchedSide = cand.side || null;
+        }
+      }
       const dCenter = Math.hypot(pos.x - z.position[0], pos.z - z.position[2]);
       const effectiveDist = (z.id === 'quizBooth' || z.id === 'offeringShop')
         ? Math.min(dStand, Math.max(0, dCenter - 0.85))
         : dStand;
       if (effectiveDist <= z.triggerRadius && effectiveDist < bestDist) {
         bestDist = effectiveDist;
+        const sideLabel = z.id === 'offeringTable'
+          ? (matchedSide === 'right' ? '右供桌' : '左供桌')
+          : z.id === 'bench'
+            ? ({ north: '北側', south: '南側', west: '西側', east: '東側' }[matchedSide || 'south'] || '')
+            : null;
         found = {
           type: 'zone',
           id: z.id,
+          offeringSide: z.id === 'offeringTable' ? matchedSide : null,
+          benchSide: z.id === 'bench' ? (matchedSide || 'south') : null,
           title: z.name,
           icon: z.icon,
-          actionText: `進入【${z.shortLabel}】`
+          actionText: z.id === 'offeringTable'
+            ? `進入【${sideLabel}擺放供品】`
+            : z.id === 'bench'
+              ? `坐上【象棋板凳（${sideLabel}）】`
+              : `進入【${z.shortLabel}】`
         };
       }
     }
@@ -1324,7 +2069,7 @@ export class TempleSceneController {
       }
     }
 
-    const nextKey = found ? `${found.type}:${found.id}` : '';
+    const nextKey = found ? `${found.type}:${found.id}:${found.benchSide || found.offeringSide || ''}` : '';
     if (nextKey !== this.activeZoneKey) {
       this.activeZoneKey = nextKey;
       this.callbacks.onProximityChange?.(found);
@@ -1356,6 +2101,10 @@ export class TempleSceneController {
       const desiredTarget = this.inIndoorView
         ? this._getIndoorTargetForPlayer(pos)
         : new THREE.Vector3(pos.x, pos.y + 1.35, pos.z);
+      // ★ V1.1 手機端對話框展開時，目標點略微下移使主角與對話 NPC 完整上移至畫面中上方不被遮擋！
+      if (this.dialogueShiftActive && this.isMobileDevice) {
+        desiredTarget.y -= 0.72;
+      }
       const tDiff = desiredTarget.clone().sub(this.controls.target);
       const followK = Math.min(1, dt * 8);
       this.controls.target.addScaledVector(tDiff, followK);
@@ -1375,6 +2124,11 @@ export class TempleSceneController {
 
   animate() {
     requestAnimationFrame(this.animate);
+    // ★ V51 分頁隱藏／手機鎖屏時暫停 3D 重繪與輪詢，大幅節省手機電量與防止過熱！
+    if (typeof document !== 'undefined' && document.hidden) {
+      this.clock.getDelta();
+      return;
+    }
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const elapsed = this.clock.elapsedTime;
 
@@ -1386,7 +2140,8 @@ export class TempleSceneController {
     this.atmosphere.update(dt, elapsed);
 
     this.player.update(dt, elapsed);
-    this.npcManager.update(dt, elapsed, this.player.root.position, 1 + this.npcManager.remotePeers.size);
+    const totalRealOnline = 1 + Math.max(this.npcManager.remotePeers.size, this.npcManager.totalOnlineRemotePeers || 0);
+    this.npcManager.update(dt, elapsed, this.player.root.position, totalRealOnline);
 
     this.presenceTimer += dt;
     if (this.presenceTimer >= 0.15) {
@@ -1399,10 +2154,65 @@ export class TempleSceneController {
         rotY: Number(this.player.root.rotation.y.toFixed(2)),
         state: this.player.state,
         holdingIncense: this.player.holdingIncense,
+        holdingTeapot: this.holdingTeapot,
         bubble: this.pendingBubble
       });
       this.pendingBubble = '';
     }
+
+    // ★ V1.2 後埕放山母雞嚴格限定在草坪區塊內散步啄食（絕不踏上石板人行道！）
+    (this.refs.chickens || []).forEach((hen) => {
+      const u = hen.userData;
+      const box = u.lawnBox || { minX: -12.4, maxX: -7.4, minZ: -21.8, maxZ: -19.9 };
+      if (u.scaredTimer > 0) u.scaredTimer = Math.max(0, u.scaredTimer - dt);
+      const isScared = u.scaredTimer > 0;
+      const dx = u.targetX - hen.position.x;
+      const dz = u.targetZ - hen.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 0.14) {
+        const step = Math.min(dist, (isScared ? 2.6 : 0.85) * dt);
+        hen.position.x = THREE.MathUtils.clamp(hen.position.x + (dx / dist) * step, box.minX, box.maxX);
+        hen.position.z = THREE.MathUtils.clamp(hen.position.z + (dz / dist) * step, box.minZ, box.maxZ);
+        hen.position.y = 0.04 + Math.abs(Math.sin(elapsed * (isScared ? 20.0 : 9.5) + u.phase)) * (isScared ? 0.16 : 0.04);
+        const yaw = Math.atan2(dx, dz);
+        let diff = yaw - hen.rotation.y;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        hen.rotation.y += diff * Math.min(1, dt * 6);
+        hen.rotation.x = 0;
+      } else {
+        hen.position.y = 0.04;
+        hen.rotation.x = Math.max(0, Math.sin(elapsed * 5.2 + u.phase)) * 0.28;
+        u.waitTimer -= dt;
+        if (u.waitTimer <= 0) {
+          u.waitTimer = 2.2 + Math.random() * 3.0;
+          u.targetX = box.minX + 0.3 + Math.random() * Math.max(0.5, box.maxX - box.minX - 0.6);
+          u.targetZ = box.minZ + 0.3 + Math.random() * Math.max(0.5, box.maxZ - box.minZ - 0.6);
+        }
+      }
+    });
+
+    this.eggSpawnTimer += dt;
+    if (this.eggSpawnTimer >= 22) {
+      this.eggSpawnTimer = 0;
+      if (this.eggItems.length < 3) {
+        this._spawnEggNearHen();
+      }
+    }
+
+    const pPos = this.player.root.position;
+    this.eggItems.forEach((e) => {
+      e.eggMesh.position.y = 0.22 + Math.sin(elapsed * 3.8 + e.phase) * 0.045;
+      e.ring.scale.setScalar(1 + Math.sin(elapsed * 4.5 + e.phase) * 0.14);
+      e.badge.position.y = 0.92 + Math.sin(elapsed * 3.2 + e.phase) * 0.08;
+      // ★ V31 走近後埕才顯示撿雞蛋標籤，避免隔牆穿過廟門懸浮！
+      e.badge.visible = Math.hypot(pPos.x - e.group.position.x, pPos.z - e.group.position.z) <= 7.5;
+    });
+    this.stubItems.forEach((s) => {
+      s.ring.scale.setScalar(1 + Math.sin(elapsed * 4.8 + s.phase) * 0.15);
+      s.badge.position.y = 0.86 + Math.sin(elapsed * 3.4 + s.phase) * 0.08;
+      s.badge.visible = Math.hypot(pPos.x - s.group.position.x, pPos.z - s.group.position.z) <= 7.5;
+    });
 
     this.refs.lanterns.forEach((l, i) => { l.rotation.z = Math.sin(elapsed * 1.9 + i) * 0.055; });
     this.refs.clouds.forEach((c, i) => { c.position.x = c.userData.baseX + Math.sin(elapsed * 0.14 + i * 2) * 2.2; });
@@ -1410,21 +2220,36 @@ export class TempleSceneController {
     (this.refs.fiveCampFlags || []).forEach((flag, i) => {
       flag.rotation.y = Math.sin(elapsed * 2.6 + i * 0.9) * 0.12;
     });
-    // 金爐窗口內 3D 火焰躍動燃燒動畫！
+    // 金爐窗口與點香器缺口內 3D 火焰躍動燃燒動畫！
     (this.refs.furnaceFlames || []).forEach((fl, i) => {
       const f = 0.86 + Math.sin(elapsed * 11.5 + i * 2.1) * 0.22 + Math.cos(elapsed * 17.0 + i) * 0.10;
       fl.scale.set(0.92 + Math.sin(elapsed * 9 + i) * 0.10, f, 0.92 + Math.cos(elapsed * 8 + i) * 0.10);
       fl.rotation.z = Math.sin(elapsed * 7.5 + i * 1.6) * 0.14;
     });
-    (this.refs.waterfallStreams || []).forEach((w, idx) => {
-      if (w.userData.baseY !== undefined) {
-        w.material.opacity = 0.65 + Math.sin(elapsed * 5.2 + w.userData.phase) * 0.22;
-        w.position.y = w.userData.baseY - ((elapsed * 0.45 + idx * 0.3) % 0.25);
-      } else {
-        const s = 0.92 + Math.sin(elapsed * 4.5) * 0.14;
-        w.scale.setScalar(s);
+    (this.refs.igniterFlames || []).forEach((fl, i) => {
+      const phase = fl.userData?.phase ?? i * 1.7;
+      const f = 0.84 + Math.sin(elapsed * 13.0 + phase) * 0.24 + Math.cos(elapsed * 19.5 + phase) * 0.12;
+      fl.scale.set(0.92 + Math.sin(elapsed * 10 + phase) * 0.12, f, 0.92 + Math.cos(elapsed * 9.5 + phase) * 0.12);
+      fl.rotation.z = Math.sin(elapsed * 8.5 + phase) * 0.18;
+      fl.rotation.x = Math.cos(elapsed * 7.2 + phase) * 0.12;
+    });
+    // ★ V32 平順自然流動瀑布 UV 捲動 ＋ 柔焦羽化同心擴散水波漣漪 ＋ 池面微光緩流！
+    (this.refs.waterfallStreams || []).forEach((w) => {
+      if (w.userData.isWaterfallUV && w.material?.map) {
+        w.material.map.offset.y = (elapsed * (w.userData.speed || 1.0) + w.userData.phase) % 1;
+        w.material.opacity = 0.78 + Math.sin(elapsed * 3.8 + w.userData.phase) * 0.10;
       }
     });
+    (this.refs.pondRipples || []).forEach((rip) => {
+      const cycle = (elapsed * 0.42 + (rip.userData.phase || 0)) % 1;
+      const scale = 0.38 + cycle * 1.45;
+      rip.scale.setScalar(scale);
+      rip.material.opacity = Math.sin(cycle * Math.PI) * 0.56;
+    });
+    if (this.refs.pondWaterTex) {
+      this.refs.pondWaterTex.offset.x = (elapsed * 0.022) % 1;
+      this.refs.pondWaterTex.offset.y = (elapsed * 0.016) % 1;
+    }
 
     // ★ 需求 #1：右側水池七彩錦鯉魚群自然流動優游 ＋ 灑飼料時蜂擁游來爭食動畫！
     if (this.koiFeedTimer > 0) {
@@ -1494,10 +2319,30 @@ export class TempleSceneController {
       ring.material.opacity = isInside ? 0.96 : isGuided ? 0.8 : 0.44;
       ring.material.color.set(isInside ? 0xFFE680 : ring.userData.baseColor);
     });
+    (this.refs.extraZoneRings || []).forEach(({ zoneId, ring }) => {
+      const isInside = this.activeZoneKey === `zone:${zoneId}`;
+      const isGuided = this.guidedZoneId === zoneId;
+      const pulse = isInside ? 1.12 + Math.sin(elapsed * 7) * 0.08 : isGuided ? 1 + Math.sin(elapsed * 4.5) * 0.14 : 1 + Math.sin(elapsed * 2.2) * 0.04;
+      ring.scale.setScalar(pulse);
+      ring.material.opacity = isInside ? 0.96 : isGuided ? 0.8 : 0.44;
+      ring.material.color.set(isInside ? 0xFFE680 : ring.userData.baseColor);
+    });
 
+    // ★ V31 嚴格單一聚焦頭頂框：只有「真正走進該設施互動觸發區」時才顯示對應那 1 個標籤，絕不一次跳出一堆重疊框框！
     this.refs.zoneBadges.forEach((badge, zoneId) => {
-      const amp = this.guidedZoneId === zoneId ? 0.13 : 0.05;
-      badge.position.y = badge.userData.baseY + Math.sin(elapsed * 2.5 + badge.position.x) * amp;
+      const isFocused = this.activeZoneKey === `zone:${zoneId}` && (zoneId !== 'offeringTable' || pPos.x <= 0);
+      badge.visible = isFocused;
+      if (isFocused) {
+        const amp = this.guidedZoneId === zoneId ? 0.13 : 0.05;
+        badge.position.y = badge.userData.baseY + Math.sin(elapsed * 2.5 + badge.position.x) * amp;
+      }
+    });
+    (this.refs.extraZoneBadges || []).forEach(({ zoneId, badge }) => {
+      const isFocused = this.activeZoneKey === `zone:${zoneId}` && pPos.x > 0;
+      badge.visible = isFocused;
+      if (isFocused) {
+        badge.position.y = badge.userData.baseY + Math.sin(elapsed * 2.5 + badge.position.x) * 0.05;
+      }
     });
 
     if (this.clickMarkerLife > 0) {

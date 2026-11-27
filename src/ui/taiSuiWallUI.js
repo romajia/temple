@@ -111,7 +111,7 @@ export class TaiSuiWallUI {
                   const isNew = item.id === this.justAddedId;
                   const fontStyle = this._getStripFontStyle(item.name);
                   return `
-                    <div data-ts-id="${item.id}" class="ts-strip group relative cursor-pointer rounded-xl p-2 flex flex-col items-center justify-between h-[178px] border-2 overflow-hidden transition-all duration-300 ${
+                    <div data-ts-id="${this._esc(item.id)}" class="ts-strip group relative cursor-pointer rounded-xl p-2 flex flex-col items-center justify-between h-[178px] border-2 overflow-hidden transition-all duration-300 ${
                       isHit || isNew
                         ? 'bg-gradient-to-b from-[#FFE66D] to-[#F59E0B] border-white scale-105 shadow-[0_0_20px_rgba(255,224,102,0.95)] z-10'
                         : item.type === 'online'

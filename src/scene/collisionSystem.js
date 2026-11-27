@@ -45,25 +45,36 @@ export class TempleCollisionSystem {
     // 3. 正殿神龕與加寬加深的雕花主神桌（完整承托方鼎香爐絕不懸空！）
     this._addBox(0, -9.95, 10.8, 3.8, 'mainShrine');
 
-    // 4. 正殿大供桌
-    this._addBox(0, -6.2, 5.6, 1.75, 'offeringTable');
+    // 4. ★ V34 左右大供桌略外移至 ±4.10 (寬 3.50m) 並收齊中央長跪墊 (寬 2.06m)，兩側留出 1.32m 寬敞直通走道，行走與尋路直接穿越不再繞大圈！
+    this._addBox(-4.10, -5.4, 3.50, 1.44, 'offeringTableLeft');
+    this._addBox(4.10, -5.4, 3.50, 1.44, 'offeringTableRight');
+    // ★ V34 主神前方橫式長跪墊（仍不可踩踏，但左右兩側留出充裕空間可順暢直走！）
+    this._addBox(0, -5.0, 2.06, 0.58, 'mainWorshipMat');
 
     // 5. 廟內左側香燭金紙區
     this._addBox(-8.2, 1.2, 1.6, 3.3, 'incenseTable');
 
-    // 6. 正殿神明右側求籤擲筊案（移入殿內神明右側！）
-    this._addBox(6.6, -8.8, 1.38, 1.38, 'fortuneDesk');
+    // 6. ★ V34 求籤擲筊案對齊右供桌旁 (7.15, -5.4)
+    this._addBox(7.15, -5.4, 1.32, 1.32, 'fortuneDesk');
 
     // 7. 廟內右側紅紙太歲燈牆
     this._addBox(9.65, -2.8, 0.58, 7.8, 'taiSuiWall');
 
+    // ★ V31 奉茶區放左側 (-8.55, 4.45)；平安符展示桌 (8.42, 2.05) 與功德箱 (8.42, 3.45) 交換位置，服務台 (7.90, 5.75) 置東側南段！
+    this._addBox(-8.55, 4.45, 1.35, 1.85, 'teaStation');
+    this._addBox(8.42, 2.05, 1.25, 1.30, 'talismanTable');
+    this._addBox(8.42, 3.45, 1.25, 1.05, 'meritBox');
+    this._addBox(7.90, 5.75, 1.38, 2.55, 'serviceDesk');
+
     // 8. 廟外大廣場三足天公爐
     this._addCircle(0, 15.0, 1.56, 'tiangongCenser');
 
-    // 9. 廟門左側木頭板凳區與大榕樹
-    this._addBox(-11.0, 13.8, 2.55, 0.72, 'bench1');
-    this._addBox(-12.95, 15.25, 0.72, 2.55, 'bench2');
-    this._addCircle(-11.4, 15.1, 0.56, 'teaTable');
+    // 9. ★ V37 廟門左側大榕樹象棋桌與 4 張環繞木頭長板凳（收緊碰撞盒於板凳核心 1.72×0.46，四角留出 > 1.05m 寬闊通道，徹底消除卡死問題！）
+    this._addBox(-11.40, 13.40, 1.72, 0.46, 'bench1');
+    this._addBox(-12.82, 15.10, 0.46, 1.72, 'bench2');
+    this._addBox(-9.98, 15.10, 0.46, 1.72, 'bench3');
+    this._addBox(-11.40, 16.80, 1.72, 0.46, 'bench4');
+    this._addCircle(-11.40, 15.10, 0.56, 'chessTable');
     this._addCircle(-13.8, 12.4, 0.85, 'banyanTree');
 
     // 10. ★ 需求 #5：紅底木框公佈欄移至母獅左側（6.7, 11.55），完全不擋燒金紙動線與視線！
@@ -72,8 +83,8 @@ export class TempleCollisionSystem {
     // 11. 廟宇右側外部六角寶塔金爐
     this._addCircle(16.2, 4.4, 1.74, 'pagodaFurnace');
 
-    // 12. 前廣場供品鋪與民俗挑戰攤（配合 90° 旋轉櫃檯，讓老闆娘與關主安心站在後方）
-    this._addBox(-12.2, 20.0, 1.55, 2.55, 'offeringShopStall');
+    // 12. ★ V29 供品鋪往左移至 (-16.8, 20.0)，完全不遮擋板凳象棋聊天區！
+    this._addBox(-16.8, 20.0, 1.55, 2.55, 'offeringShopStall');
     this._addBox(12.2, 20.0, 1.55, 2.55, 'quizBoothStall');
 
     // 13. 新廟前方左右守門石獅子座台
@@ -182,7 +193,8 @@ export class TempleCollisionSystem {
   }
 
   _buildNavGrid() {
-    this.cellSize = 0.75;
+    // ★ V34 精細化尋路網格 (0.50m) 與安全半徑 (0.43m)，讓角色能順暢穿越跪墊與左右供桌間走道，絕不繞大圈！
+    this.cellSize = 0.50;
     this.gridCols = Math.ceil((this.bounds.maxX - this.bounds.minX) / this.cellSize) + 1;
     this.gridRows = Math.ceil((this.bounds.maxZ - this.bounds.minZ) / this.cellSize) + 1;
     this.walkable = new Uint8Array(this.gridCols * this.gridRows);
@@ -190,7 +202,7 @@ export class TempleCollisionSystem {
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
         const { x, z } = this._cellToWorld(c, r);
-        this.walkable[r * this.gridCols + c] = this.isBlocked(x, z, 0.48) ? 0 : 1;
+        this.walkable[r * this.gridCols + c] = this.isBlocked(x, z, 0.43) ? 0 : 1;
       }
     }
   }
@@ -223,10 +235,10 @@ export class TempleCollisionSystem {
 
   hasLineOfSight(ax, az, bx, bz) {
     const dist = Math.hypot(bx - ax, bz - az);
-    const steps = Math.max(2, Math.ceil(dist / 0.3));
+    const steps = Math.max(2, Math.ceil(dist / 0.25));
     for (let i = 1; i < steps; i++) {
       const t = i / steps;
-      if (this.isBlocked(ax + (bx - ax) * t, az + (bz - az) * t, 0.46)) return false;
+      if (this.isBlocked(ax + (bx - ax) * t, az + (bz - az) * t, 0.43)) return false;
     }
     return true;
   }
@@ -259,7 +271,7 @@ export class TempleCollisionSystem {
 
     let found = false;
     let guard = 0;
-    while (open.length > 0 && guard++ < 4400) {
+    while (open.length > 0 && guard++ < 8800) {
       let bestPos = 0;
       for (let i = 1; i < open.length; i++) {
         if (fScore[open[i]] < fScore[open[bestPos]]) bestPos = i;

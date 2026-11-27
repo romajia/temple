@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { LIGHTING_THEMES } from '../config/templeConfig.js';
+import { createCarvedStoneTexture } from './canvasTextures.js';
 
 function createRadialGlowTexture(innerHex, midHex) {
   const canvas = document.createElement('canvas');
@@ -134,8 +135,8 @@ export class DayNightAtmosphere {
       this.pointLights.push({ light: pl, maxIntensity: maxInt });
     });
 
-    // ★ 需求 #18：精美古風「雕花宮燈路燈」（階梯石座＋深銅雕花燈柱＋祥雲金臂＋六角琉璃宮燈＋朱紅翹角小亭蓋！）
-    const stoneMat = new THREE.MeshStandardMaterial({ color: 0xCACFD4, roughness: 0.84 });
+    // ★ V32 精美古風「雕花宮燈路燈」（階梯石座全面鋪設天然花崗石紋理！）
+    const stoneMat = new THREE.MeshStandardMaterial({ map: createCarvedStoneTexture(), color: 0xD2D6DA, roughness: 0.84 });
     const bronzePostMat = new THREE.MeshStandardMaterial({ color: 0x3D2E26, metalness: 0.45, roughness: 0.48 });
     const goldMat = new THREE.MeshStandardMaterial({ color: 0xE8BA56, metalness: 0.62, roughness: 0.30 });
     const roofCapMat = new THREE.MeshStandardMaterial({ color: 0xB91C1C, roughness: 0.55 });
@@ -281,9 +282,13 @@ export class DayNightAtmosphere {
     this.root.add(curtain);
   }
 
-  setMode(mode) {
+  setMode(mode, immediate = false) {
     this.mode = mode === 'night' ? 'night' : 'day';
     this.targetNight = this.mode === 'night' ? 1 : 0;
+    if (immediate) {
+      this.nightFactor = this.targetNight;
+      this._applyThemeImmediate(this.nightFactor);
+    }
   }
 
   toggleMode() {
@@ -330,6 +335,17 @@ export class DayNightAtmosphere {
 
     const bulbColor = new THREE.Color(0xEDE6D6).lerp(new THREE.Color(0xFFE08C), nf);
     this.stringBulbMaterials.forEach(m => m.color.copy(bulbColor));
+
+    // ★ V31 服務台辦公小檯燈：白天熄燈，夜晚自動亮起暖金燈面、燈泡、柔和光錐與登記冊暖光池！
+    if (this.refs.serviceDeskLamp) {
+      const { bulbMat, innerShadeMat, lampFaceMat, haloMat, coneMat, poolMat } = this.refs.serviceDeskLamp;
+      if (bulbMat) bulbMat.color.copy(new THREE.Color(0xDCD8CE).lerp(new THREE.Color(0xFFFAD0), nf));
+      if (innerShadeMat) innerShadeMat.color.copy(new THREE.Color(0x524E46).lerp(new THREE.Color(0xFFE89E), nf));
+      if (lampFaceMat) lampFaceMat.color.copy(new THREE.Color(0xA8A49B).lerp(new THREE.Color(0xFFF6B8), nf));
+      if (haloMat) haloMat.opacity = 0.72 * nf;
+      if (coneMat) coneMat.opacity = 0.46 * nf;
+      if (poolMat) poolMat.opacity = 0.78 * nf;
+    }
 
     this.nightOnlyGlowMaterials.forEach(({ mat, maxOpacity }) => { mat.opacity = maxOpacity * nf; });
     this.pointLights.forEach(({ light, maxIntensity }) => { light.intensity = maxIntensity * nf; });

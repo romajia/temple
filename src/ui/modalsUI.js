@@ -7,7 +7,7 @@
  * - 燒金紙逐張投入爐口觸發（驗收 #9）
  * - 常駐與巡遊 NPC 專屬親切對話視窗（阿財伯、淑芬阿姨、阿明、小美）
  */
-import { TEMPLE_CONFIG } from '../config/templeConfig.js';
+import { TEMPLE_CONFIG, TALISMAN_CATALOG, DAILY_QUESTS, PEER_EMOTES } from '../config/templeConfig.js';
 import { OFFERING_CATALOG } from '../data/initialData.js';
 import { FOLKLORE_QUIZ_50 } from '../data/folkloreQuiz50.js';
 import { SIXTY_FORTUNE_POEMS } from '../data/sixtyFortunePoems.js';
@@ -15,6 +15,7 @@ import { SUTRA_LIST } from '../data/sutraData.js';
 import { storageSync } from '../services/storageSync.js';
 import { generateFortuneInterpretation } from '../services/aiTempleKeeper.js';
 import { generateFortuneCardDataURL } from '../services/fortuneCardGenerator.js';
+import { generateTalismanCardDataUrl } from '../services/talismanCardGenerator.js';
 import { soundEngine } from '../audio/soundEngine.js';
 
 const QUICK_WISHES = [
@@ -51,6 +52,42 @@ function renderOfferingIcon(item, sizeClass = 'text-2xl') {
     </span>`;
   }
   return `<span class="${sizeClass}">${item.emoji}</span>`;
+}
+
+/**
+ * ★ V33 傳統刺繡平安符袋專屬 SVG 圖示（移除「之印」，改為加粗清晰大字「觀音佛祖」／「代天巡狩」！）
+ */
+function renderTalismanSealIcon(talismanId, sizeClass = 'w-14 h-14') {
+  const isGuanyin = talismanId === 'guanyin_safe';
+  const fillA = isGuanyin ? '#1D7A63' : '#C8232C';
+  const fillB = isGuanyin ? '#0E483A' : '#7C1111';
+  const sealA = isGuanyin ? '觀音' : '代天';
+  const sealB = isGuanyin ? '佛祖' : '巡狩';
+  const label = isGuanyin ? '觀音佛祖平安符' : '代天巡狩平安符';
+  const gradId = isGuanyin ? 'talGradGY' : 'talGradDT';
+  return `<span class="inline-flex items-center justify-center shrink-0" title="${label}">
+    <svg viewBox="0 0 64 76" class="${sizeClass} drop-shadow-sm">
+      <defs>
+        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${fillA}"/>
+          <stop offset="100%" stop-color="${fillB}"/>
+        </linearGradient>
+      </defs>
+      <!-- 紅絲掛繩 -->
+      <path d="M24 14 Q32 2 40 14" fill="none" stroke="#C81E1E" stroke-width="2.6" stroke-linecap="round"/>
+      <!-- 八角刺繡平安符袋 -->
+      <rect x="8" y="13" width="48" height="51" rx="10" fill="url(#${gradId})" stroke="#F5CA5C" stroke-width="2.6"/>
+      <rect x="12" y="17" width="40" height="43" rx="7" fill="none" stroke="#FFE994" stroke-width="1" stroke-dasharray="2.5 1.5"/>
+      <text x="32" y="25" text-anchor="middle" font-size="7.2" font-weight="900" fill="#FFE994" font-family="'Microsoft JhengHei','Noto Sans TC',sans-serif">德 慈 宮</text>
+      <!-- 特粗清晰方框印字（「觀音佛祖」／「代天巡狩」） -->
+      <rect x="15" y="28" width="34" height="28" rx="3.5" fill="#FFFDF4" stroke="#B91C1C" stroke-width="2.2"/>
+      <text x="32" y="40.5" text-anchor="middle" font-size="11.5" font-weight="900" fill="#B91C1C" stroke="#B91C1C" stroke-width="0.45" font-family="'Microsoft JhengHei','Noto Sans TC',sans-serif">${sealA}</text>
+      <text x="32" y="52.5" text-anchor="middle" font-size="11.5" font-weight="900" fill="#B91C1C" stroke="#B91C1C" stroke-width="0.45" font-family="'Microsoft JhengHei','Noto Sans TC',sans-serif">${sealB}</text>
+      <!-- 底部金珠流蘇 -->
+      <circle cx="32" cy="66.5" r="2.8" fill="#F5CA5C"/>
+      <path d="M29 69 L35 69 L36.5 75.5 L27.5 75.5 Z" fill="#C81E1E"/>
+    </svg>
+  </span>`;
 }
 
 export class TempleModalsUI {
@@ -227,9 +264,14 @@ export class TempleModalsUI {
   // =========================================================================
   // 3. 正殿供桌（驗收 #7：選擇供品＋輸入送出祈願＋明確「祈願已上達神明」回饋＋10分鐘倒數）
   // =========================================================================
-  openOfferingsModal() {
+  openOfferingsModal(initialSide = null) {
     this.closeModal();
     this.lastWishConfirm = null;
+    if (initialSide === 'left' || initialSide === 'right') {
+      this.selectedOfferingSide = initialSide;
+    } else if (!this.selectedOfferingSide) {
+      this.selectedOfferingSide = 'left';
+    }
     const player = storageSync.getPlayer();
 
     const updateActiveList = () => {
@@ -254,10 +296,11 @@ export class TempleModalsUI {
         const mins = Math.floor(remainMs / 60000);
         const secs = Math.floor((remainMs % 60000) / 1000);
         const pct = Math.max(0, Math.min(100, (remainMs / ttl) * 100));
+        const sideLabel = item.side === 'right' ? '右供桌' : '左供桌';
         return `
           <div class="p-2.5 rounded-xl bg-white border border-[#DEC9A2] text-xs shadow-xs">
             <div class="flex items-center justify-between gap-1">
-              <span class="font-black text-[#261109]">${item.emoji} ${this._esc(item.name)}</span>
+              <span class="font-black text-[#261109]">${this._esc(item.emoji)} ${this._esc(item.name)} <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#FDE68A] text-[#78350F] ml-1">${sideLabel}</span></span>
               <span class="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">⏳ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}</span>
             </div>
             <div class="text-[11px] text-[#5C3A21] font-medium mt-0.5">信眾：<strong>${this._esc(item.donor)}</strong></div>
@@ -269,6 +312,8 @@ export class TempleModalsUI {
         `;
       }).join('');
     };
+
+    if (!this.selectedOfferingSide) this.selectedOfferingSide = 'left';
 
     const renderModal = () => {
       const selectedDef = OFFERING_CATALOG.find(o => o.id === this.selectedOfferingId) || OFFERING_CATALOG[0];
@@ -328,7 +373,19 @@ export class TempleModalsUI {
                 </div>
 
                 <form id="off-submit-form" class="space-y-2.5 bg-[#FFF6E5] border-2 border-[#E6B44C] rounded-2xl p-3.5">
-                  <div class="text-xs font-black text-[#6B2F1A]">步驟 2：輸入祈願語並送出稟報給神明</div>
+                  <div class="text-xs font-black text-[#6B2F1A]">步驟 2：選擇擺放哪一張供桌、輸入祈願語並稟報神明</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button type="button" data-select-side="left" class="py-2 px-3 rounded-xl border-2 text-xs font-black transition ${
+                      this.selectedOfferingSide === 'left'
+                        ? 'bg-[#8E1515] text-[#FFF9E6] border-[#FAD364] shadow'
+                        : 'bg-white text-[#5C3A21] border-[#DEC9A2] hover:bg-[#FEF3C7]'
+                    }">⬅️ 擺放於左側供桌</button>
+                    <button type="button" data-select-side="right" class="py-2 px-3 rounded-xl border-2 text-xs font-black transition ${
+                      this.selectedOfferingSide === 'right'
+                        ? 'bg-[#8E1515] text-[#FFF9E6] border-[#FAD364] shadow'
+                        : 'bg-white text-[#5C3A21] border-[#DEC9A2] hover:bg-[#FEF3C7]'
+                    }">➡️ 擺放於右側供桌</button>
+                  </div>
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div>
                       <label class="font-bold text-[#5C3A21] block mb-1">信眾稱呼</label>
@@ -392,6 +449,14 @@ export class TempleModalsUI {
         });
       });
 
+      this.modalRoot.querySelectorAll('[data-select-side]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          soundEngine.playSoftClick();
+          this.selectedOfferingSide = btn.getAttribute('data-select-side') === 'right' ? 'right' : 'left';
+          renderModal();
+        });
+      });
+
       this.modalRoot.querySelectorAll('[data-quick-wish]').forEach(btn => {
         btn.addEventListener('click', () => {
           soundEngine.playSoftClick();
@@ -420,7 +485,12 @@ export class TempleModalsUI {
           storageSync.consumeInventoryOffering(this.selectedOfferingId);
         }
 
-        const { record, trimmedOldest } = storageSync.addOffering(this.selectedOfferingId, donor, wish);
+        const { record, trimmedOldest } = storageSync.addOffering(
+          this.selectedOfferingId,
+          donor,
+          wish,
+          this.selectedOfferingSide || 'left'
+        );
         this.lastWishConfirm = record;
         soundEngine.playBlessingChime();
         this.hooks.onOfferingPlaced?.(record, trimmedOldest);
@@ -479,11 +549,11 @@ export class TempleModalsUI {
               </div>
             </div>
             <p class="text-xs text-[#4A2210] leading-relaxed">
-              立於正殿中央紅毯面向神龕，無需移至拜墊即可虔誠行三拜禮並上前插上三柱清香。<br>
+              於正殿中央紅毯橫式長跪墊虔誠下跪面向神龕，行三拜大禮後起身向前插上三柱清香。<br>
               <span class="text-[#8E1515] font-bold">（若想靜心敲木魚念經，可直接走上左右兩側任一拜墊喔！）</span>
             </p>
             <button id="btn-worship-main" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#C8232C] to-[#991B1B] text-[#FFF9E6] font-black text-sm shadow-lg border border-[#FAD364] hover:brightness-110 flex items-center justify-center gap-2">
-              <span>🔥</span> 三拜主神並上前插香（完成步驟 ④）
+              <span>🙏</span> 下跪三拜主神並上前插香（完成步驟 ④）
             </button>
           </div>
         </div>
@@ -570,6 +640,7 @@ export class TempleModalsUI {
 
     const doTap = () => {
       soundEngine.playWoodenFish();
+      this.hooks.onChantTap?.();
       this.chantTapCount++;
       const tapRes = storageSync.addChantTap();
       if (tapRes.reward > 0) {
@@ -704,15 +775,42 @@ export class TempleModalsUI {
     const fs = this.fortuneState;
     const cast = fs.lastCast;
     const isSheng = cast?.type === 'sheng';
-    const renderBlock = (isFlat, deg) => `
-      <div class="w-24 h-12 rounded-t-full border-4 shadow-lg flex items-center justify-center font-black text-xs ${
-        isFlat
-          ? 'bg-gradient-to-b from-[#FDE2B8] to-[#E9B872] border-[#B91C1C] text-[#7C1414]'
-          : 'bg-gradient-to-b from-[#DC2626] to-[#991B1B] border-[#7F1D1D] text-[#FFF3B0]'
-      }" style="transform: rotate(${deg}deg);">
-        ${isFlat ? '平面（陽）' : '凸面（陰）'}
-      </div>
-    `;
+    const renderBlock = (isFlat, deg) => {
+      const uid = `${isFlat ? 'f' : 'd'}${Math.abs(deg)}`;
+      return `
+        <div class="flex flex-col items-center gap-1" style="transform: rotate(${deg}deg);">
+          <svg viewBox="0 0 120 68" class="w-28 h-16 drop-shadow-[0_8px_8px_rgba(0,0,0,0.45)]">
+            <defs>
+              <linearGradient id="beiRed${uid}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#EF4444"/>
+                <stop offset="48%" stop-color="#B91C1C"/>
+                <stop offset="100%" stop-color="#6B0F10"/>
+              </linearGradient>
+              <linearGradient id="beiWood${uid}" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#FDE8C4"/>
+                <stop offset="55%" stop-color="#E5B675"/>
+                <stop offset="100%" stop-color="#C28642"/>
+              </linearGradient>
+            </defs>
+            ${isFlat ? `
+              <!-- 陽面（立體紅漆厚側壁 ＋ 凹入原木年輪月牙平面） -->
+              <path d="M10 50 Q60 -4 110 50 Q60 28 10 50 Z" fill="url(#beiRed${uid})" stroke="#5C0B0B" stroke-width="2.5"/>
+              <path d="M16 44 Q60 3 104 44 Q60 27 16 44 Z" fill="url(#beiWood${uid})" stroke="#991B1B" stroke-width="2"/>
+              <path d="M28 36 Q60 15 92 36" fill="none" stroke="#A16207" stroke-opacity="0.38" stroke-width="1.6"/>
+              <path d="M36 33 Q60 20 84 33" fill="none" stroke="#A16207" stroke-opacity="0.28" stroke-width="1.2"/>
+            ` : `
+              <!-- 陰面（飽滿拱隆紅漆月牙穹背 ＋ 亮光弧影） -->
+              <path d="M10 52 Q60 -8 110 52 Q60 26 10 52 Z" fill="url(#beiRed${uid})" stroke="#5C0B0B" stroke-width="2.5"/>
+              <path d="M24 34 Q60 5 94 31" fill="none" stroke="#FCA5A5" stroke-opacity="0.65" stroke-width="4" stroke-linecap="round"/>
+              <path d="M16 48 Q60 27 104 48" fill="none" stroke="#450A0A" stroke-opacity="0.55" stroke-width="2.2"/>
+            `}
+          </svg>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${isFlat ? 'bg-[#FEF3C7] text-[#7C1414]' : 'bg-[#991B1B] text-[#FFF3B0] border border-[#FAD364]/60'}">
+            ${isFlat ? '平面（陽）' : '凸面（陰）'}
+          </span>
+        </div>
+      `;
+    };
 
     return `
       <div class="text-center space-y-4">
@@ -1394,39 +1492,95 @@ export class TempleModalsUI {
   }
 
   // =========================================================================
-  // 10. 隨身香火背包 ＋ 每日祈福簽到
+  // 10. 隨身香火背包（★ V1.1 整合：每日簽到 ＋ 數位平安符圖鑑＆下載＆贈禮 ＋ 土雞蛋 ＋ 供品庫存）
   // =========================================================================
-  openBackpackModal() {
+  openBackpackModal(initialMsg = '') {
     this.closeModal();
-    const renderBag = (msg = '') => {
+    const renderBag = (msg = initialMsg) => {
       const player = storageSync.getPlayer();
       const inv = player.inventory || {};
+      const eggs = storageSync.getEggCount();
+      const talismans = storageSync.getTalismans();
+      const collection = new Set(storageSync.getTalismanCollection());
+      const onlinePeers = storageSync.getOnlinePeers();
       const today = new Date().toISOString().slice(0, 10);
       const checkedIn = player.lastCheckinDate === today;
 
       this.modalRoot.innerHTML = `
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-5">
-          <div class="bg-[#FBF7E9] border-4 border-[#183C32] rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden text-[#1C2D28]">
-            <div class="bg-[#183C32] px-5 py-3.5 flex items-center justify-between text-[#FBF7E9] border-b-2 border-[#E5B968]">
+          <div class="bg-[#FBF7E9] border-4 border-[#183C32] rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-[#1C2D28]">
+            <div class="bg-[#183C32] px-5 py-3.5 flex items-center justify-between text-[#FBF7E9] border-b-2 border-[#E5B968] shrink-0">
               <div>
-                <h2 class="font-black text-lg">🎒 隨身香火背包與每日簽到</h2>
+                <h2 class="font-black text-lg">🎒 隨身香火背包與平安符圖鑑</h2>
                 <p class="text-xs text-[#E5B968]">香客：${this._esc(player.name || '虔誠香客')} ｜ 累積功德：<strong>✨ ${player.merit || 0}</strong></p>
               </div>
               <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
             </div>
-            <div class="p-5 space-y-4">
+            <div class="p-4 sm:p-5 space-y-4 overflow-y-auto">
               ${msg ? `<div class="p-2.5 rounded-xl bg-[#FEF3C7] border border-[#D97706] text-xs font-black text-[#78350F]">${msg}</div>` : ''}
 
               <!-- 每日簽到領功德 -->
-              <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#E9F3EC] border border-[#9BBAA8]">
+              <div class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#E9F3EC] border border-[#9BBAA8]">
                 <div>
                   <div class="font-black text-sm text-[#183C32]">📅 每日德慈宮平安簽到</div>
                   <div class="text-xs text-[#53635A]">每日簽到領取 +20 功德結緣禮</div>
                 </div>
-                <button id="bag-checkin" ${checkedIn ? 'disabled' : ''} class="px-4 py-2 rounded-xl text-xs font-black ${
+                <button id="bag-checkin" ${checkedIn ? 'disabled' : ''} class="px-3.5 py-2 rounded-xl text-xs font-black shrink-0 ${
                   checkedIn ? 'bg-gray-300 text-gray-600' : 'bg-[#183C32] hover:bg-[#1E4D40] text-[#FBF7E9]'
                 }">
                   ${checkedIn ? '✓ 今日已簽到' : '領取 +20 功德'}
+                </button>
+              </div>
+
+              <!-- 數位平安符圖鑑收藏（100 功德於功德箱求取，可下載圖卡＆贈送結緣！） -->
+              <div class="bg-[#FFF4DC] border-2 border-[#D49B35] rounded-2xl p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="font-black text-sm text-[#8E1515]">🧧 數位平安符圖鑑收藏</span>
+                  <button id="bag-go-meritbox" class="text-xs font-black text-[#8E1515] hover:underline">前往功德箱求符 ➔</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  ${TALISMAN_CATALOG.map((t) => {
+                    const qty = talismans[t.id] || 0;
+                    const unlocked = collection.has(t.id) || qty > 0;
+                    return `
+                      <div class="p-3 rounded-xl border-2 ${unlocked ? 'bg-white border-[#C98A28]' : 'bg-[#F5EFE0] border-[#DFD2B6] opacity-75'} flex flex-col justify-between gap-2">
+                        <div class="flex items-start gap-2.5">
+                          ${renderTalismanSealIcon(t.id, 'w-11 h-12')}
+                          <div class="min-w-0">
+                            <div class="font-black text-xs text-[#261109]">${t.name}</div>
+                            <div class="text-[11px] font-bold ${qty > 0 ? 'text-[#8E1515]' : 'text-[#6B6256]'}">
+                              ${unlocked ? `圖鑑已收藏 ｜ 持有 ×${qty}` : '尚未求取（100 功德）'}
+                            </div>
+                          </div>
+                        </div>
+                        <div class="flex gap-1.5">
+                          <button data-dl-talisman="${t.id}" ${unlocked ? '' : 'disabled'}
+                            class="flex-1 py-1.5 rounded-lg text-[11px] font-black ${unlocked ? 'bg-[#183C32] text-[#FFFDF5] hover:brightness-110' : 'bg-gray-200 text-gray-500'}">
+                            📥 下載圖卡
+                          </button>
+                          <button data-gift-item="${t.id}" ${qty > 0 ? '' : 'disabled'}
+                            class="flex-1 py-1.5 rounded-lg text-[11px] font-black ${qty > 0 ? 'bg-[#B91C1C] text-[#FFFDF5] hover:brightness-110' : 'bg-gray-200 text-gray-500'}">
+                            🎁 贈送結緣
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- 特色道具：新鮮土雞蛋（拜虎爺專用，亦可贈送給其他真人玩家！） -->
+              <div class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-[#FFFBEB] border-2 border-[#F59E0B]">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="text-2xl shrink-0">🥚</span>
+                  <div class="min-w-0">
+                    <div class="font-black text-sm text-[#78350F]">新鮮土雞蛋 <span class="text-[#B45309]">×${eggs}</span></div>
+                    <div class="text-[11px] text-[#92400E] font-medium">於廟後埕找放山母雞撿取，可獻給桌下虎爺（+15 功德）或贈送香客</div>
+                  </div>
+                </div>
+                <button data-gift-item="egg" ${eggs > 0 ? '' : 'disabled'}
+                  class="shrink-0 px-3 py-2 rounded-xl text-xs font-black ${eggs > 0 ? 'bg-[#D97706] hover:bg-[#B45309] text-white' : 'bg-gray-200 text-gray-500'}">
+                  🎁 贈送
                 </button>
               </div>
 
@@ -1449,6 +1603,8 @@ export class TempleModalsUI {
                   }).join('')}
                 </div>
               </div>
+
+              ${onlinePeers.length === 0 ? `<p class="text-[11px] text-center text-[#6B7A72] font-semibold">💡 當有其他真人香客在線時，即可透過「🎁 贈送」將平安符或土雞蛋結緣給對方喔！</p>` : ''}
             </div>
           </div>
         </div>
@@ -1459,6 +1615,10 @@ export class TempleModalsUI {
         soundEngine.playSoftClick();
         this.openOfferingShopModal();
       });
+      this.modalRoot.querySelector('#bag-go-meritbox')?.addEventListener('click', () => {
+        soundEngine.playSoftClick();
+        this.openMeritBoxModal();
+      });
       this.modalRoot.querySelector('#bag-checkin')?.addEventListener('click', () => {
         const r = storageSync.claimDailyCheckin();
         if (r.ok) {
@@ -1466,8 +1626,591 @@ export class TempleModalsUI {
           renderBag('✨ 今日平安簽到完成！已領取 +20 功德結緣禮！');
         }
       });
+      this.modalRoot.querySelectorAll('[data-dl-talisman]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const tid = btn.getAttribute('data-dl-talisman');
+          const def = TALISMAN_CATALOG.find(t => t.id === tid);
+          if (!def) return;
+          soundEngine.playBlessingChime();
+          const dataUrl = generateTalismanCardDataUrl({
+            talisman: def,
+            holderName: storageSync.getPlayer().name || '虔誠香客'
+          });
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `玉勅代天府德慈宮-${def.name}.png`;
+          a.click();
+          renderBag(`📥 已為您下載「${def.name}」電子平安符圖卡！`);
+        });
+      });
+      this.modalRoot.querySelectorAll('[data-gift-item]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const itemKey = btn.getAttribute('data-gift-item');
+          soundEngine.playSoftClick();
+          this.openOnlinePeersModal(itemKey);
+        });
+      });
     };
     renderBag();
+  }
+
+  // =========================================================================
+  // 12. V1.1 奉茶區＆神桌清茶三杯敬茶
+  // =========================================================================
+  openTeaStationModal(isHoldingTeapot = false) {
+    this.closeModal();
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+        <div class="bg-[#FBF7E9] border-4 border-[#0D9488] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="bg-gradient-to-r from-[#0F766E] to-[#0D9488] px-5 py-3.5 flex items-center justify-between text-white border-b-2 border-[#99F6E4]">
+            <h2 class="font-black text-lg">🍵 正殿左側・奉茶區</h2>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-5 space-y-4 text-center">
+            <div class="text-5xl">🍵♨️</div>
+            <p class="text-sm text-[#134E4A] font-semibold leading-relaxed">
+              奉茶姊姊淑芬已將溫熱清香的<strong>茶壺</strong>備妥！<br>
+              提起茶壺走到主神桌前，為神明敬奉「清茶三杯」，圓滿後可獲得 <strong>+10 功德</strong>！
+            </p>
+            <button id="btn-take-teapot"
+              class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0F766E] to-[#115E59] text-white font-black text-sm shadow-lg border border-[#99F6E4] hover:brightness-110">
+              ${isHoldingTeapot ? '🚶 已提著茶壺，帶我去神桌敬茶 ➔' : '🍵 提起茶壺並前往神桌敬茶'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelector('#btn-take-teapot')?.addEventListener('click', () => {
+      soundEngine.playSoftClick();
+      this.closeModal();
+      this.hooks.onTakeTeapot?.();
+    });
+  }
+
+  openTeaOfferModal(isHoldingTeapot = false) {
+    this.closeModal();
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+        <div class="bg-[#FBF7E9] border-4 border-[#059669] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="bg-gradient-to-r from-[#047857] to-[#059669] px-5 py-3.5 flex items-center justify-between text-white border-b-2 border-[#A7F3D0]">
+            <h2 class="font-black text-lg">🍵 主神桌・清茶三杯</h2>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-5 space-y-4 text-center">
+            <div class="text-5xl">🍵🍵🍵</div>
+            <p class="text-sm text-[#064E3B] font-semibold leading-relaxed">
+              ${isHoldingTeapot
+                ? '您已提著溫熱茶壺！點擊下方按鈕即可誠心為神明添滿清茶三杯（獲得 <strong>+10 功德</strong>）！'
+                : '欲為神明添茶，請先至正殿左側「🍵 奉茶區」提起茶壺，再回到主神桌敬茶喔！'}
+            </p>
+            <button id="btn-pour-tea"
+              class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#059669] to-[#047857] text-white font-black text-sm shadow-lg border border-[#A7F3D0] hover:brightness-110">
+              ${isHoldingTeapot ? '✨ 誠心為神明倒清茶三杯（+10 功德）' : '🚶 前往左側「奉茶區」拿取茶壺'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelector('#btn-pour-tea')?.addEventListener('click', () => {
+      soundEngine.playSoftClick();
+      this.closeModal();
+      if (isHoldingTeapot) {
+        this.hooks.onPourTea?.();
+      } else {
+        this.hooks.onWalkToTeaStation?.();
+      }
+    });
+  }
+
+  // =========================================================================
+  // 13. V1.2 桌下虎爺（黑虎將軍）無遮擋底部精簡操作卡（上方面畫面 100% 透明不擋黑虎爺、支援 3 顆土雞蛋 10 分鐘限時與插香！）
+  // =========================================================================
+  openTigerDeityModal() {
+    this.closeModal();
+    this.hooks.onTigerFocus?.(true);
+
+    const closeTiger = () => {
+      document.body.classList.remove('rpg-dialogue-open');
+      this.hooks.onTigerFocus?.(false);
+      this.closeModal();
+    };
+
+    const renderTigerCard = (notice = '') => {
+      document.body.classList.add('rpg-dialogue-open');
+      const eggs = storageSync.getEggCount();
+      const offeredEggs = storageSync.getTigerEggs();
+      const usedMerit = storageSync.getTigerWorshipCountToday();
+
+      this.modalRoot.innerHTML = `
+        <div class="fixed inset-x-0 bottom-2 sm:bottom-5 z-[60] flex justify-center px-3 pointer-events-none">
+          <div class="pointer-events-auto bg-[#FFFBF2]/95 border-3 border-[#B45309] rounded-2xl sm:rounded-3xl shadow-[0_14px_38px_rgba(16,24,20,0.42)] w-full max-w-md overflow-hidden text-[#261109] animate-fade-in">
+            <div class="bg-gradient-to-r from-[#78350F] via-[#B45309] to-[#78350F] px-4 py-2 flex items-center justify-between text-[#FFF8E2] border-b border-[#FAD364]">
+              <h2 class="font-black text-sm sm:text-base flex items-center gap-1.5"><span>🐯</span> 桌下虎爺・黑虎將軍</h2>
+              <button data-close class="w-7 h-7 rounded-full bg-black/30 hover:bg-black/50 text-white text-xs font-bold">✕</button>
+            </div>
+            <div class="p-3 sm:p-3.5 space-y-2.5 text-center">
+              ${notice ? `<div class="px-2.5 py-1.5 rounded-xl bg-[#FEF3C7] border border-[#D97706] text-[11px] font-black text-[#78350F]">${notice}</div>` : ''}
+              <div class="flex items-center justify-between gap-2 text-[11px] sm:text-xs font-black text-[#4A2210] bg-[#FFF4DC] border border-[#E6B44C] rounded-xl px-2.5 py-1.5">
+                <span>🥚 供盤：<strong>${offeredEggs.length}/3</strong>（10分）</span>
+                <span>✨ 今日功德 <strong>${usedMerit}/3</strong></span>
+                <span class="text-[#B45309]">🎒 蛋 ×${eggs}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <button id="btn-tiger-incense" class="py-2.5 px-2.5 rounded-xl bg-gradient-to-r from-[#B91C1C] to-[#8E1515] text-[#FFFDF5] font-black text-xs shadow border border-[#FAD364] hover:brightness-110">
+                  🔥 拜虎爺插香 (+1)
+                </button>
+                ${eggs > 0
+                  ? `<button id="btn-offer-egg" class="py-2.5 px-2.5 rounded-xl bg-gradient-to-r from-[#D97706] to-[#B45309] text-white font-black text-xs shadow border border-[#FDE68A] hover:brightness-110">
+                      🥚 獻蛋 (+1)
+                    </button>`
+                  : `<button id="btn-go-backyard-egg" class="py-2.5 px-2.5 rounded-xl bg-[#183C32] hover:bg-[#1E4D40] text-[#FFFDF5] font-black text-xs shadow border border-[#A7F3D0]">
+                      🐔 去草地撿雞蛋
+                    </button>`}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      this.modalRoot.querySelector('[data-close]').addEventListener('click', closeTiger);
+      this.modalRoot.querySelector('#btn-tiger-incense')?.addEventListener('click', () => {
+        soundEngine.playBell(0.24, 440);
+        const res = this.hooks.onWorshipTigerIncenseOnly?.();
+        const msg = res?.granted
+          ? `🔥 已於虎爺香爐插香，獲得 +1 功德（今日 ${res.used}/3）！`
+          : '🔥 已於虎爺香爐插香祈福！（今日拜虎爺功德已達 3 次上限，仍可誠心參拜喔）';
+        renderTigerCard(msg);
+      });
+      this.modalRoot.querySelector('#btn-offer-egg')?.addEventListener('click', () => {
+        soundEngine.playBlessingChime();
+        const res = this.hooks.onOfferEggToTiger?.();
+        const msg = res?.granted
+          ? `🥚 已誠心向虎爺獻上土雞蛋，獲得 +1 功德（今日 ${res.used}/3）！`
+          : '🥚 已誠心向虎爺獻上新鮮土雞蛋！（今日拜虎爺功德已達 3 次上限）';
+        renderTigerCard(msg);
+      });
+      this.modalRoot.querySelector('#btn-go-backyard-egg')?.addEventListener('click', () => {
+        soundEngine.playSoftClick();
+        closeTiger();
+        this.hooks.onWalkToBackyard?.();
+      });
+    };
+    renderTigerCard();
+  }
+
+  // =========================================================================
+  // 13.5 V1.2 五營旗（五營將軍）參拜與五營香爐插香彈窗
+  // =========================================================================
+  openFiveCampsModal() {
+    this.closeModal();
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+        <div class="bg-[#FFFBF2] border-4 border-[#15803D] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="bg-gradient-to-r from-[#166534] to-[#15803D] px-5 py-3.5 flex items-center justify-between text-[#FFFDF5] border-b-2 border-[#BBF7D0]">
+            <h2 class="font-black text-lg">🚩 五營旗・五營將軍香爐</h2>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-5 space-y-4 text-center">
+            <div class="text-5xl">🚩🔥🙏</div>
+            <p class="text-sm text-[#14532D] font-semibold leading-relaxed">
+              正殿左側安奉東、南、西、北、中五方「五營旗」與五營將軍香爐，護境安民、驅邪納福。<br>
+              虔誠向五營將軍行三拜禮並於五營香爐插上三柱清香，可獲 <strong>+8 功德</strong>！
+            </p>
+            <button id="btn-worship-fivecamps"
+              class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#15803D] to-[#166534] text-white font-black text-sm shadow-lg border border-[#BBF7D0] hover:brightness-110">
+              🔥 三拜五營將軍並插香（+8 功德）
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelector('#btn-worship-fivecamps')?.addEventListener('click', () => {
+      soundEngine.playBell(0.24, 415);
+      this.closeModal();
+      this.hooks.onWorshipFiveCamps?.();
+    });
+  }
+
+  // =========================================================================
+  // 14A. ★ V31 平安符展示桌（僅供平安符介紹；求取平安符需至旁邊「功德箱」投 100 功德！）
+  // =========================================================================
+  openTalismanIntroModal({ onWalkToMeritBox } = {}) {
+    this.closeModal();
+    const tals = storageSync.getTalismans();
+    const merit = Number(storageSync.getPlayer().merit) || 0;
+
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-5">
+        <div class="bg-[#FFFBF2] border-4 border-[#B45309] rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden text-[#261109] animate-fade-in">
+          <div class="bg-gradient-to-r from-[#92400E] via-[#B45309] to-[#92400E] px-5 py-3.5 flex items-center justify-between text-[#FFF8E2] border-b-2 border-[#FAD364] shrink-0">
+            <div>
+              <h2 class="font-black text-lg flex items-center gap-2"><span>📜</span> 德慈宮平安符展示桌・結緣介紹</h2>
+              <p class="text-xs text-[#FDE68A] font-bold">本桌僅供展示與介紹｜求取平安符請投 100 功德至旁邊功德箱</p>
+            </div>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-4 sm:p-5 space-y-3.5 overflow-y-auto">
+            <div class="p-3 rounded-2xl bg-[#FEF3C7] border-2 border-[#D97706] text-xs font-bold text-[#78350F] leading-relaxed">
+              💡 <strong>如何求取平安符：</strong>請至旁邊的<strong>「🧧 德慈宮功德箱」</strong>投入 <strong>100 功德</strong>添香油，即可誠心求取任一款數位平安符存入背包收藏、下載手機圖卡或贈送親友結善緣！（目前功德：<strong>✨ ${merit}</strong>）
+            </div>
+            <div class="space-y-3">
+              ${TALISMAN_CATALOG.map((t) => {
+                const owned = tals[t.id] || 0;
+                return `
+                  <div class="p-4 rounded-2xl bg-white border-2 border-[#D49B35] flex items-start gap-3 shadow-xs">
+                    ${renderTalismanSealIcon(t.id, 'w-14 h-16')}
+                    <div class="space-y-1">
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="font-black text-sm text-[#8E1515]">${t.name}</span>
+                        <span class="px-2 py-0.5 rounded-full bg-[#FEF2F2] border border-[#DC2626] text-[#991B1B] text-[10px] font-black">${t.id === 'guanyin_safe' ? '觀音佛祖' : '代天巡狩'}</span>
+                      </div>
+                      <p class="text-xs text-[#4A2210] leading-relaxed">${t.desc}</p>
+                      <div class="text-[11px] font-bold text-[#0F766E]">
+                        結緣功德：100 功德（請投旁邊功德箱）｜背包已持有 ×${owned}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <button id="btn-goto-meritbox-from-intro"
+              class="w-full py-3 rounded-2xl bg-gradient-to-r from-[#B91C1C] to-[#8E1515] text-[#FFFDF5] font-black text-sm shadow-lg border border-[#FAD364] hover:brightness-110">
+              🚶 前往旁邊「功德箱」投 100 功德求符 ➔
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelector('#btn-goto-meritbox-from-intro')?.addEventListener('click', () => {
+      soundEngine.playSoftClick();
+      this.closeModal();
+      onWalkToMeritBox?.();
+    });
+  }
+
+  // =========================================================================
+  // 14. V1.1 廟內功德箱（投 100 功德添香油求取數位平安符）
+  // =========================================================================
+  openMeritBoxModal() {
+    this.closeModal();
+    const renderBox = (msg = '') => {
+      const merit = Number(storageSync.getPlayer().merit) || 0;
+      const tals = storageSync.getTalismans();
+
+      this.modalRoot.innerHTML = `
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-5">
+          <div class="bg-[#FFFBF2] border-4 border-[#8E1515] rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden text-[#261109] animate-fade-in">
+            <div class="bg-gradient-to-r from-[#7C1414] via-[#A81C18] to-[#7C1414] px-5 py-3.5 flex items-center justify-between text-[#FFF8E2] border-b-2 border-[#FAD364] shrink-0">
+              <div>
+                <h2 class="font-black text-lg flex items-center gap-2"><span>🧧</span> 德慈宮功德箱・求數位平安符</h2>
+                <p class="text-xs text-[#FFE89E] font-bold">目前累積功德：<strong>✨ ${merit}</strong>（每款平安符 100 功德）</p>
+              </div>
+              <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+            </div>
+            <div class="p-4 sm:p-5 space-y-3.5 overflow-y-auto">
+              ${msg ? `<div class="p-2.5 rounded-xl bg-[#FEF3C7] border border-[#D97706] text-xs font-black text-[#78350F]">${msg}</div>` : ''}
+              <p class="text-xs text-[#5C3A21] font-semibold leading-relaxed">
+                累積 <strong>100 功德</strong> 即可添香油求取數位平安符存入 🎒 背包！可永久圖鑑收藏、下載電子符卡保存於手機，或贈送給線上真人香客結善緣！
+              </p>
+              <div class="space-y-3">
+                ${TALISMAN_CATALOG.map((t) => {
+                  const canAfford = merit >= t.cost;
+                  const owned = tals[t.id] || 0;
+                  return `
+                    <div class="p-3.5 rounded-2xl bg-white border-2 border-[#D49B35] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                      <div class="flex items-start gap-3">
+                        ${renderTalismanSealIcon(t.id, 'w-12 h-14')}
+                        <div>
+                          <div class="font-black text-sm text-[#8E1515]">${t.name}</div>
+                          <div class="text-xs text-[#5C3A21] leading-snug mt-0.5">${t.desc}</div>
+                          <div class="text-[11px] font-bold text-[#0F766E] mt-1">目前持有 ×${owned}</div>
+                        </div>
+                      </div>
+                      <button data-buy-talisman="${t.id}" ${canAfford ? '' : 'disabled'}
+                        class="w-full sm:w-auto shrink-0 px-4 py-2.5 rounded-xl text-xs font-black shadow ${
+                          canAfford
+                            ? 'bg-gradient-to-r from-[#B91C1C] to-[#8E1515] text-[#FFFDF5] border border-[#FAD364] hover:brightness-110'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }">
+                        ${canAfford ? `✨ 100 功德求符` : `尚缺 ${t.cost - merit} 功德`}
+                      </button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div class="pt-1 flex justify-end">
+                <button id="mb-open-bag" class="text-xs font-black text-[#183C32] hover:underline">🎒 前往背包查看圖鑑與下載圖卡 ➔</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+      this.modalRoot.querySelector('#mb-open-bag')?.addEventListener('click', () => {
+        soundEngine.playSoftClick();
+        this.openBackpackModal();
+      });
+      this.modalRoot.querySelectorAll('[data-buy-talisman]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const tid = btn.getAttribute('data-buy-talisman');
+          const res = storageSync.exchangeTalisman(tid);
+          if (res.ok) {
+            soundEngine.playBlessingChime();
+            this.hooks.onTalismanObtained?.(res.talisman);
+            renderBox(`🎉 誠心求得「${res.talisman.name}」並已收入背包圖鑑！（持有 ×${res.count}）`);
+          } else {
+            renderBox(`⚠️ ${res.reason}`);
+          }
+        });
+      });
+    };
+    renderBox();
+  }
+
+  // =========================================================================
+  // 15. V1.1 廟埕每日任務清單彈窗
+  // =========================================================================
+  openQuestBoardModal() {
+    this.closeModal();
+    const quests = storageSync.getAllQuestStates();
+    const statusBadge = (st) => {
+      if (st === 'done') return '<span class="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] text-[10px] font-black">✓ 今日已完成</span>';
+      if (st === 'ready') return '<span class="px-2 py-0.5 rounded-full bg-[#FEF08A] text-[#854D0E] text-[10px] font-black animate-pulse">❓ 可回報領獎</span>';
+      if (st === 'active') return '<span class="px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1E40AF] text-[10px] font-black">進行中</span>';
+      return '<span class="px-2 py-0.5 rounded-full bg-[#FEE2E2] text-[#991B1B] text-[10px] font-black">❗ 可接取</span>';
+    };
+
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-5">
+        <div class="bg-[#FFFBF2] border-4 border-[#183C32] rounded-3xl shadow-2xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="bg-[#183C32] px-5 py-3.5 flex items-center justify-between text-[#FFFDF5] border-b-2 border-[#E5B968] shrink-0">
+            <div>
+              <h2 class="font-black text-lg">📜 廟埕生活化每日任務</h2>
+              <p class="text-xs text-[#E5B968]">每日重置｜點擊任務可自動帶路找對應 NPC！</p>
+            </div>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-4 space-y-2.5 overflow-y-auto">
+            ${quests.map((q) => `
+              <div class="p-3 rounded-2xl bg-white border-2 ${q.status === 'ready' ? 'border-[#16A34A]' : 'border-[#DFC99B]'} flex items-center justify-between gap-2.5">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-base">${q.icon}</span>
+                    <span class="font-black text-sm text-[#8E1515]">${q.title}</span>
+                    ${statusBadge(q.status)}
+                  </div>
+                  <div class="text-xs text-[#4A2E1B] mt-1 font-medium">${q.npcAvatar} ${q.npcName} ｜ 獎勵 <strong>+${q.reward} 功德</strong>${q.status === 'active' ? `（進度 ${q.progress}/${q.target}）` : ''}</div>
+                </div>
+                <button data-goto-npc="${q.npcId}" class="shrink-0 px-3 py-2 rounded-xl bg-[#F3E6CA] hover:bg-[#E7D1A4] border border-[#C98A28] text-xs font-black text-[#4A2210]">
+                  🚶 去找他
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelectorAll('[data-goto-npc]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const npcId = btn.getAttribute('data-goto-npc');
+        soundEngine.playSoftClick();
+        this.closeModal();
+        this.hooks.onWalkToNpc?.(npcId);
+      });
+    });
+  }
+
+  // =========================================================================
+  // 16. V1.1 在線真人香客列表 ＋ 雙向結緣互動（揮手／作揖／握手／贈禮）
+  // =========================================================================
+  openOnlinePeersModal(preselectGiftKey = '') {
+    this.closeModal();
+    const peers = storageSync.getOnlinePeers();
+    const renderStats = window.__deciScene?.getRemotePeerRenderStats?.() || null;
+
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-3 sm:p-5">
+        <div class="bg-[#FFFBF2] border-4 border-[#183C32] rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="bg-[#183C32] px-5 py-3.5 flex items-center justify-between text-[#FFFDF5] border-b-2 border-[#E5B968] shrink-0">
+            <div>
+              <h2 class="font-black text-base sm:text-lg">🤝 同場在線真人香客（${peers.length} 位）</h2>
+              <p class="text-[11px] text-[#E5B968]">${preselectGiftKey ? '請選擇要結緣贈送的對象' : '打招呼＋對方回禮，雙方各得 +1 功德（同人每日限 3 次）'}</p>
+            </div>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-4 space-y-2.5 overflow-y-auto">
+            ${renderStats && renderStats.capped ? `
+              <div class="px-3 py-2 rounded-xl bg-[#ECFDF5] border border-[#10B981] text-[11px] font-bold text-[#065F46] leading-relaxed">
+                🛡️ <strong>同屏流暢保護已啟動</strong>：為避免手機卡頓，3D 畫面優先顯示距離您最近的 <strong>${renderStats.cap} 位</strong>香客；下方名單仍可與全場 ${peers.length} 位真人即時互動與贈禮！
+              </div>
+            ` : ''}
+            ${peers.length === 0
+              ? `<div class="p-6 text-center text-sm font-bold text-[#5C6A63]">
+                  目前廟內暫時只有您一位真人香客 🙏<br>
+                  <span class="text-xs font-medium mt-1 block">分享網址邀請親友一起進廟參拜，即可即時揮手結緣與互贈平安符！</span>
+                </div>`
+              : peers.map((p, idx) => {
+                  const used = storageSync.getPairQuotaToday(p.uid || p.id);
+                  return `
+                    <div class="p-3 rounded-2xl bg-white border-2 border-[#DFC99B] flex items-center justify-between gap-2">
+                      <div class="min-w-0">
+                        <div class="font-black text-sm text-[#183C32] truncate">🟢 ${this._esc(p.name || '線上香客')}</div>
+                        <div class="text-[11px] text-[#6B543E] font-bold">今日結緣功德：${used} / 3 次</div>
+                      </div>
+                      <button data-pick-peer="${idx}" class="shrink-0 px-3.5 py-2 rounded-xl bg-[#8E1515] hover:bg-[#701010] text-[#FFFDF5] text-xs font-black shadow-xs">
+                        ${preselectGiftKey ? '🎁 贈送給他' : '👋 互動／贈禮'}
+                      </button>
+                    </div>
+                  `;
+                }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelectorAll('[data-pick-peer]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const peer = peers[Number(btn.getAttribute('data-pick-peer'))];
+        if (!peer) return;
+        soundEngine.playSoftClick();
+        if (preselectGiftKey) {
+          const r = await storageSync.sendGiftToPeer(peer, preselectGiftKey);
+          this.closeModal();
+          if (r.ok) {
+            soundEngine.playBlessingChime();
+            this.hooks.onGiftSent?.(peer, r.giftLabel);
+          }
+        } else {
+          this.openPeerInteractionModal(peer);
+        }
+      });
+    });
+  }
+
+  openPeerInteractionModal(peer) {
+    if (!peer) return;
+    this.closeModal();
+    const used = storageSync.getPairQuotaToday(peer.uid || peer.id);
+    const eggs = storageSync.getEggCount();
+    const tals = storageSync.getTalismans();
+
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 p-3 sm:p-5">
+        <div class="bg-[#FFFBF2] border-4 border-[#8E1515] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-[#1C2D28] animate-fade-in">
+          <div class="bg-gradient-to-r from-[#7C1414] to-[#A81C18] px-5 py-3 flex items-center justify-between text-[#FFF8E2] border-b-2 border-[#FAD364]">
+            <div>
+              <h2 class="font-black text-base">🤝 與「${this._esc(peer.name || '線上香客')}」結緣互動</h2>
+              <p class="text-[11px] text-[#FFE89E]">對方回禮雙方各得 +1 功德（今日已結緣 ${used} / 3 次）</p>
+            </div>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-4 space-y-3">
+            <div class="grid grid-cols-3 gap-2">
+              ${PEER_EMOTES.map((em) => `
+                <button data-send-emote="${em.id}"
+                  class="py-3 px-2 rounded-2xl bg-[#FFF3D6] hover:bg-[#FDE68A] border-2 border-[#D97706] flex flex-col items-center gap-1 transition active:scale-95">
+                  <span class="text-2xl">${em.emoji}</span>
+                  <span class="text-[11px] font-black text-[#5A1A0C]">${em.label}</span>
+                </button>
+              `).join('')}
+            </div>
+
+            <div class="pt-2 border-t border-[#E5D3B3] space-y-2">
+              <div class="text-xs font-black text-[#183C32]">🎁 贈送背包結緣小物</div>
+              <div class="grid grid-cols-1 gap-1.5">
+                <button data-peer-gift="egg" ${eggs > 0 ? '' : 'disabled'}
+                  class="w-full py-2 px-3 rounded-xl text-xs font-black flex items-center justify-between ${eggs > 0 ? 'bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-[#D97706] text-[#78350F]' : 'bg-gray-100 text-gray-400'}">
+                  <span>🥚 贈送新鮮土雞蛋（持有 ×${eggs}）</span>
+                  <span>${eggs > 0 ? '送出 ➔' : '無庫存'}</span>
+                </button>
+                ${TALISMAN_CATALOG.map((t) => {
+                  const qty = tals[t.id] || 0;
+                  return `
+                    <button data-peer-gift="${t.id}" ${qty > 0 ? '' : 'disabled'}
+                      class="w-full py-2 px-3 rounded-xl text-xs font-black flex items-center justify-between ${qty > 0 ? 'bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#B91C1C] text-[#8E1515]' : 'bg-gray-100 text-gray-400'}">
+                      <span class="flex items-center gap-1.5">${renderTalismanSealIcon(t.id, 'w-5 h-6')} 贈送${t.name}（持有 ×${qty}）</span>
+                      <span>${qty > 0 ? '送出 ➔' : '無庫存'}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelectorAll('[data-send-emote]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const actionId = btn.getAttribute('data-send-emote');
+        soundEngine.playSoftClick();
+        this.closeModal();
+        await this.hooks.onSendPeerEmote?.(peer, actionId);
+      });
+    });
+    this.modalRoot.querySelectorAll('[data-peer-gift]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const giftKey = btn.getAttribute('data-peer-gift');
+        const res = await storageSync.sendGiftToPeer(peer, giftKey);
+        this.closeModal();
+        if (res.ok) {
+          soundEngine.playBlessingChime();
+          this.hooks.onGiftSent?.(peer, res.giftLabel);
+        }
+      });
+    });
+  }
+
+  /**
+   * ★ V1.1 收到其他真人香客的「揮手／作揖／握手」即時結緣通知條（含一鍵「🙏 回禮 +1 功德」！）
+   */
+  showIncomingInteractionBanner(ev, onReplyClick) {
+    let host = document.getElementById('peer-interaction-toast');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'peer-interaction-toast';
+      host.className = 'fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 w-[94vw] max-w-md pointer-events-auto';
+      document.body.appendChild(host);
+    }
+    const emoteDef = PEER_EMOTES.find(e => e.id === ev.action) || PEER_EMOTES[0];
+    host.innerHTML = `
+      <div class="bg-[#FFFBF2] border-3 border-[#B91C1C] rounded-2xl shadow-[0_12px_32px_rgba(16,24,20,0.35)] px-3.5 py-2.5 flex items-center justify-between gap-2.5 animate-fade-in">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-2xl shrink-0">${emoteDef.emoji}</span>
+          <div class="min-w-0">
+            <div class="text-xs sm:text-sm font-black text-[#8E1515] truncate">${this._esc(ev.fromName || '線上香客')} 向你${emoteDef.label}！</div>
+            <div class="text-[11px] font-bold text-[#5C3A21]">按回禮雙方各得 +1 功德</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btn-peer-reply-now" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#B91C1C] to-[#8E1515] text-[#FFFDF5] text-xs font-black border border-[#FAD364] shadow active:scale-95">
+            🙏 回禮 (+1)
+          </button>
+          <button id="btn-peer-reply-close" class="w-7 h-7 rounded-full bg-[#F3E6CA] text-[#4A2210] text-xs font-black">✕</button>
+        </div>
+      </div>
+    `;
+    clearTimeout(this._peerToastTimer);
+    this._peerToastTimer = setTimeout(() => { if (host) host.innerHTML = ''; }, 12000);
+
+    host.querySelector('#btn-peer-reply-close')?.addEventListener('click', () => {
+      host.innerHTML = '';
+    });
+    host.querySelector('#btn-peer-reply-now')?.addEventListener('click', async () => {
+      host.innerHTML = '';
+      soundEngine.playBlessingChime();
+      await onReplyClick?.(ev);
+    });
   }
 
   // =========================================================================
@@ -1501,6 +2244,73 @@ export class TempleModalsUI {
       soundEngine.playBlessingChime();
       this.closeModal();
       this.hooks.onFeedKoi?.();
+    });
+  }
+
+  // =========================================================================
+  // 12. ★ V32 正殿東側「德慈宮服務台」（取消重複自動送出表單，直接開啟「查詢太歲牆名錄＆點燈登記」專屬對話框！）
+  // =========================================================================
+  openServiceDeskModal(actions = {}) {
+    this.closeModal();
+    const quests = storageSync.getAllQuestStates();
+    const doneCount = quests.filter(q => q.status === 'done').length;
+    const taiSuiCount = storageSync.getTaiSuiList().length;
+
+    this.modalRoot.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+        <div class="bg-[#FFFBF2] border-4 border-[#9E1F1B] rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden text-[#261109] animate-fade-in">
+          <div class="bg-gradient-to-r from-[#7C1414] to-[#B91C1C] px-5 py-3.5 flex items-center justify-between text-[#FFF8E2] border-b-2 border-[#FAD364] shrink-0">
+            <div>
+              <h2 class="font-black text-lg">🛎️ 玉勅代天府德慈宮・服務台登記處</h2>
+              <p class="text-[11px] text-[#FFE89E]">阿財伯專辦安太歲點燈登記、名錄查詢與參拜諮詢</p>
+            </div>
+            <button data-close class="w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 text-white font-bold">✕</button>
+          </div>
+          <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto">
+            <!-- 主要服務項目：直接進入「安太歲牆名錄＆點燈登記」完整對話框（不再自動點燈！） -->
+            <div class="bg-[#FFF4D6] border-2 border-[#C98A28] rounded-2xl p-4 space-y-2.5">
+              <div class="font-black text-sm text-[#8E1515] flex items-center justify-between">
+                <span>🏮 安太歲牆名錄查詢・服務台點燈登記</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#8E1515] text-[#FFFDF5]">已點 ${taiSuiCount} 盞</span>
+              </div>
+              <p class="text-xs text-[#5C3A21] leading-relaxed">
+                欲查詢公司行號與信眾太歲燈名錄，或辦理本年度安太歲／光明燈登記，請點擊下方按鈕開啟「紅紙太歲燈牆」名錄視窗辦理！
+              </p>
+              <button id="sd-btn-taisui"
+                class="w-full py-3 rounded-xl bg-gradient-to-r from-[#B91C1C] to-[#8E1515] text-[#FFFDF5] font-black text-sm shadow-lg border border-[#FAD364] hover:brightness-110 active:scale-95 transition">
+                🏮 開啟太歲牆名錄・辦理點燈登記 ➔
+              </button>
+            </div>
+
+            <button id="sd-btn-quests"
+              class="w-full p-3.5 rounded-2xl bg-white hover:bg-[#FEF3C7] border-2 border-[#C98A28] flex items-center justify-between transition">
+              <div class="flex items-center gap-2.5 text-left">
+                <span class="text-xl">📋</span>
+                <div>
+                  <div class="font-black text-sm text-[#8E1515]">志工任務登記（今日已完成 ${doneCount}/${quests.length}）</div>
+                  <div class="text-[11px] text-[#6B4226]">查看廟埕各 NPC 委託任務並自動帶路</div>
+                </div>
+              </div>
+              <span class="font-black text-[#B45309]">➔</span>
+            </button>
+
+            <div class="bg-[#F6E9CE] rounded-xl p-3 border border-[#DFC694] text-[11px] text-[#4A2210] leading-relaxed">
+              <strong>🙏 參拜指引諮詢：</strong>請先至左側點香金紙桌取香並點燃，先拜廟外天公爐，再入殿獻供、於中央長跪墊下跪拜主神、拜桌下虎爺與五營旗，最後至東側寶塔金爐化金；一般宮務公告請至廟門外「紅底木框公佈欄」閱覽！
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.modalRoot.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+    this.modalRoot.querySelector('#sd-btn-taisui')?.addEventListener('click', () => {
+      soundEngine.playSoftClick();
+      this.closeModal();
+      actions.onOpenTaiSui?.();
+    });
+    this.modalRoot.querySelector('#sd-btn-quests')?.addEventListener('click', () => {
+      soundEngine.playSoftClick();
+      this.openQuestBoardModal();
     });
   }
 

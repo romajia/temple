@@ -298,7 +298,8 @@ export const TEMPLE_CONFIG = {
     ttlMs: 10 * 60 * 1000
   },
   admin: {
-    defaultPasscode: '1688'
+    // ★ V50 資安強化：已移除明文寫死密碼，全面改由 Firebase Authentication（Email/密碼）驗證
+    authMode: 'firebase'
   },
   camera: {
     fov: 35,
@@ -357,30 +358,39 @@ export const TEMPLE_CONFIG = {
     },
     offeringTable: {
       id: 'offeringTable',
-      name: '正殿大供桌',
+      name: '正殿左右大供桌',
       shortLabel: '擺放供品',
       icon: '🍎',
       stepOrder: 3,
-      position: [0, 0, -6.2],
-      standPos: [0, 0, -4.5],
-      lookAt: [0, 1.2, -6.2],
-      triggerRadius: 1.65,
+      position: [-4.10, 0, -5.4],
+      // ★ V34 雙光圈對齊左供桌 (-4.10, -4.12) 與右供桌 (+4.10, -4.12)「壽」字正前方！
+      standPos: [-4.10, 0, -4.12],
+      extraStandPositions: [
+        { pos: [4.10, 0, -4.12], side: 'right' }
+      ],
+      lookAt: [-4.10, 1.15, -5.4],
+      triggerRadius: 1.35,
       color: '#EC4899',
-      desc: '從香火背包挑選供品擺上供桌並送出祈願'
+      desc: '從香火背包挑選供品，自由選擇左側或右側大供桌擺放祈願'
     },
-    // ★ 拜主神與念經完全分開：主神在中央走道正面神明即可拜，不用上拜墊！
+    // ★ V34 拜主神長跪墊兩側留出寬敞通行走道（仍不可踩踏，可同時容納 3 人並肩下跪參拜！）
     mainWorship: {
       id: 'mainWorship',
       name: '正殿中央・拜主神',
       shortLabel: '拜主神',
       icon: '🙏',
       stepOrder: 4,
-      position: [0, 0, -2.0],
-      standPos: [0, 0, -2.0],
+      position: [0, 0, -5.0],
+      standPos: [0, 0, -4.15],
+      kneelSlots: [
+        [-0.70, 0.455, -5.08],
+        [0, 0.455, -5.08],
+        [0.70, 0.455, -5.08]
+      ],
       lookAt: [0, 2.8, -10.4],
-      triggerRadius: 1.5,
+      triggerRadius: 1.65,
       color: '#DC2626',
-      desc: '立於中央走道正面主神，虔誠三拜並插香'
+      desc: '於正殿中央紅毯橫式長跪墊（可容納 3 人同時下跪）虔誠三拜主神，拜畢起身插香'
     },
     furnace: {
       id: 'furnace',
@@ -400,12 +410,13 @@ export const TEMPLE_CONFIG = {
       name: '正殿右側・求籤擲筊案',
       shortLabel: '求籤解籤',
       icon: '🎋',
-      position: [6.6, 0, -8.8],
-      standPos: [5.4, 0, -7.6],
-      lookAt: [6.6, 1.2, -8.8],
-      triggerRadius: 1.75,
+      // ★ V34 配合右供桌對齊併排 (7.15, -5.4)
+      position: [7.15, 0, -5.4],
+      standPos: [7.15, 0, -4.12],
+      lookAt: [7.15, 1.2, -5.4],
+      triggerRadius: 1.35,
       color: '#8B5CF6',
-      desc: '位於神明右側殿內，虔誠擲聖筊求取六十甲子靈籤與阿財伯解籤'
+      desc: '位於右側大供桌旁併排，虔誠擲聖筊求取六十甲子靈籤與解籤'
     },
     taisui: {
       id: 'taisui',
@@ -421,22 +432,35 @@ export const TEMPLE_CONFIG = {
     },
     bench: {
       id: 'bench',
-      name: '廟前大榕樹板凳區',
-      shortLabel: '板凳聊天',
+      name: '廟前大榕樹象棋板凳區',
+      shortLabel: '象棋板凳',
       icon: '🪑',
-      position: [-11.0, 0, 13.8],
-      standPos: [-10.2, 0, 15.1],
-      sitPos: [-10.35, 0, 13.94],
-      seats: [
-        { pos: [-10.35, 0.03, 13.94], yaw: 0 },
-        { pos: [-11.55, 0.03, 13.94], yaw: 0 },
-        { pos: [-12.80, 0.03, 14.78], yaw: Math.PI / 2 },
-        { pos: [-12.80, 0.03, 15.72], yaw: Math.PI / 2 }
+      position: [-11.40, 0, 15.10],
+      // ★ V38 四面皆設有感應站位（南、北、西、東），走近任一張板凳都會亮起坐下提示，且 4 張板凳全部空位皆可點坐！
+      standPos: [-11.40, 0, 17.80],
+      extraStandPositions: [
+        { pos: [-11.40, 0, 12.40], side: 'north' },
+        { pos: [-13.80, 0, 15.10], side: 'west' },
+        { pos: [-9.00, 0, 15.10], side: 'east' }
       ],
-      lookAt: [-10.4, 1.0, 18.0],
-      triggerRadius: 1.7,
+      sitPos: [-10.85, 0, 13.56],
+      // ★ V38 四面長板凳共 10 個空位（附 benchSide 標籤，點擊哪張板凳優先落座該張板凳最近的空位！）
+      seats: [
+        { side: 'north', pos: [-12.15, 0.03, 13.56], yaw: 0, approach: [-12.15, 12.45] },
+        { side: 'north', pos: [-11.40, 0.03, 13.56], yaw: 0, approach: [-11.40, 12.45] },
+        { side: 'north', pos: [-10.65, 0.03, 13.56], yaw: 0, approach: [-10.65, 12.45] },
+        { side: 'south', pos: [-12.15, 0.03, 16.64], yaw: Math.PI, approach: [-12.15, 17.75] },
+        { side: 'south', pos: [-11.40, 0.03, 16.64], yaw: Math.PI, approach: [-11.40, 17.75] },
+        { side: 'south', pos: [-10.65, 0.03, 16.64], yaw: Math.PI, approach: [-10.65, 17.75] },
+        { side: 'west', pos: [-12.68, 0.03, 14.22], yaw: Math.PI / 2, approach: [-13.78, 14.22] },
+        { side: 'west', pos: [-12.68, 0.03, 15.98], yaw: Math.PI / 2, approach: [-13.78, 15.98] },
+        { side: 'east', pos: [-10.12, 0.03, 14.22], yaw: -Math.PI / 2, approach: [-9.02, 14.22] },
+        { side: 'east', pos: [-10.12, 0.03, 15.98], yaw: -Math.PI / 2, approach: [-9.02, 15.98] }
+      ],
+      lookAt: [-11.40, 0.9, 15.10],
+      triggerRadius: 1.75,
       color: '#10B981',
-      desc: '坐下喝平安茶，與線上香客及阿財伯聊天'
+      desc: '點選或走近大榕樹旁任一張象棋長板凳空位即可坐下觀棋喝茶，與文雄伯、阿忠哥及線上香客聊天'
     },
     bulletin: {
       id: 'bulletin',
@@ -456,9 +480,9 @@ export const TEMPLE_CONFIG = {
       name: '廟埕文創供品鋪',
       shortLabel: '供品鋪',
       icon: '🛍️',
-      position: [-12.2, 0, 20.0],
-      standPos: [-10.2, 0, 20.0],
-      lookAt: [-12.2, 1.4, 20.0],
+      position: [-16.8, 0, 20.0],
+      standPos: [-14.8, 0, 20.0],
+      lookAt: [-16.8, 1.4, 20.0],
       triggerRadius: 2.35,
       color: '#D97706',
       desc: '以功德請購鮮花、水果與限定壽桃塔收入香火背包'
@@ -486,19 +510,111 @@ export const TEMPLE_CONFIG = {
       triggerRadius: 2.2,
       color: '#0EA5E9',
       desc: '灑一把魚飼料餵食七彩錦鯉魚群，欣賞錦鯉爭食超療癒！'
+    },
+    // ★ V36 奉茶區文字精簡為「茶壺」，縮小觸發半徑避免與淑芬重疊誤觸！
+    teaStation: {
+      id: 'teaStation',
+      name: '正殿左側・奉茶區',
+      shortLabel: '拿取茶壺',
+      icon: '🍵',
+      position: [-8.55, 0, 4.45],
+      standPos: [-6.85, 0, 4.45],
+      lookAt: [-8.55, 1.3, 4.45],
+      triggerRadius: 1.15,
+      color: '#0D9488',
+      desc: '提起茶壺，前往主神桌為神明敬奉清茶三杯'
+    },
+    // ★ V1.1 新增：主神桌清茶三杯（倒茶敬茶）
+    teaOffer: {
+      id: 'teaOffer',
+      name: '主神桌・清茶三杯',
+      shortLabel: '敬奉清茶',
+      icon: '🍵',
+      position: [-1.45, 0, -8.1],
+      standPos: [-1.35, 0, -7.45],
+      lookAt: [0, 1.45, -8.4],
+      triggerRadius: 1.8,
+      color: '#059669',
+      desc: '手持茶壺為神桌清茶三杯緩緩添茶，誠心敬茶（+10 功德）'
+    },
+    // ★ V1.3 桌下虎爺（黑虎將軍）參拜點（每次 +1 功德，每日最多 3 次）
+    tigerDeity: {
+      id: 'tigerDeity',
+      name: '神桌下方・虎爺（黑虎將軍）',
+      shortLabel: '拜虎爺獻蛋',
+      icon: '🐯',
+      position: [1.45, 0, -8.1],
+      standPos: [1.35, 0, -7.45],
+      lookAt: [0, 0.72, -8.25],
+      triggerRadius: 1.85,
+      color: '#D97706',
+      desc: '拉近視角參拜桌下黑虎將軍、插香或獻上土雞蛋（每次 +1 功德，每日限 3 次）'
+    },
+    // ★ V1.1 新增：主神桌左側「五營旗（五營將軍）」參拜與插香點
+    fiveCamps: {
+      id: 'fiveCamps',
+      name: '正殿左側・五營旗（五營將軍）',
+      shortLabel: '拜五營旗',
+      icon: '🚩',
+      position: [-4.15, 0, -8.65],
+      standPos: [-4.15, 0, -7.2],
+      lookAt: [-4.15, 1.55, -9.15],
+      triggerRadius: 1.8,
+      color: '#15803D',
+      desc: '誠心敬拜鎮守五方之五營將軍並於五營香爐插上三柱清香（+8 功德）'
+    },
+    // ★ V31 功德箱與平安符展示桌交換位置且功能分開：北側 (z = 2.05) 平安符桌僅供展示介紹；南側 (z = 3.45) 功德箱投 100 功德求符！
+    talismanTable: {
+      id: 'talismanTable',
+      name: '太歲牆旁・平安符展示桌',
+      shortLabel: '平安符介紹',
+      icon: '📜',
+      position: [8.42, 0, 2.05],
+      standPos: [6.75, 0, 2.05],
+      lookAt: [8.42, 1.15, 2.05],
+      triggerRadius: 1.12,
+      color: '#D97706',
+      desc: '查看觀音佛祖平安符與代天巡狩順遂符介紹（欲求符請至旁邊功德箱投入 100 功德）'
+    },
+    meritBox: {
+      id: 'meritBox',
+      name: '服務台旁・德慈宮功德箱',
+      shortLabel: '投功德求符',
+      icon: '🧧',
+      position: [8.42, 0, 3.45],
+      standPos: [6.75, 0, 3.45],
+      lookAt: [8.42, 1.15, 3.45],
+      triggerRadius: 1.12,
+      color: '#B91C1C',
+      desc: '投入 100 功德添香油，誠心求取觀音佛祖或代天巡狩數位平安符'
+    },
+    // ★ V31 東側南段「德慈宮服務台」(7.90, 5.75)：與公佈欄徹底分開，專注「點燈登記／祈福登記／參拜諮詢」；夜間自動開燈！
+    serviceDesk: {
+      id: 'serviceDesk',
+      name: '正殿東側・德慈宮服務台',
+      shortLabel: '服務台登記',
+      icon: '🛎️',
+      position: [7.90, 0, 5.75],
+      standPos: [6.45, 0, 5.75],
+      lookAt: [7.90, 1.15, 5.75],
+      triggerRadius: 1.75,
+      color: '#991B1B',
+      desc: '廟公阿財伯專責辦理：安太歲點燈登記、祈福疏文現場登記與參拜動線諮詢'
     }
   },
   npcs: {
     keeper: {
       id: 'keeper',
       name: '廟公阿財伯',
-      title: '安定區港口里・玉勅代天府德慈宮駐廟阿伯',
+      title: '玉勅代天府德慈宮服務台守廟人',
       avatar: '👴',
       presetId: 'elderMale',
+      questId: 'q_incense_stubs',
       mode: 'stationary',
-      position: [-4.8, 0.03, 11.4],
-      facing: 0.35,
-      bubbleLines: ['新廟紅瓦藍脊真宏偉！', '五年千歲就是十二瘟王的盧千歲喔！', '拜天公記得靠廟向外拜喔～'],
+      // ★ V29 隨服務台位置互換，阿財伯站立於東側南段服務台後方 (9.04, 0.37, 5.75)！
+      position: [9.04, 0.37, 5.75],
+      facing: -Math.PI / 2,
+      bubbleLines: ['服務台在這邊！有事歡迎找阿財伯～', '點燈、求平安符都在服務台旁喔！', '五年千歲就是十二瘟王的盧千歲喔！'],
       dialogues: [
         '歡迎來到安定區港口里「玉勅代天府德慈宮」全新落成大廟！本宮共奉祀 11 位神尊：保生大帝、代天巡狩、觀音佛祖、天上聖母、黑虎將軍、鎮海大元帥、五府千歲、五佛佛祖、楊府太師、中壇元帥與百足真人！',
         '跟您分享一個德慈宮神尊小知識：殿內「代天巡狩五年千歲」正是十二瘟王中的【盧千歲】喔！民間尊稱「盧千歲＝五年千歲＝十二瘟王＝代天巡狩千歲爺＝千歲爺＝代天巡狩＝王爺公」，指的都是同一位王爺公！',
@@ -513,7 +629,7 @@ export const TEMPLE_CONFIG = {
       avatar: '🛍️',
       presetId: 'middleFemale',
       mode: 'stationary',
-      position: [-13.2, 0.03, 20.0],
+      position: [-17.8, 0.03, 20.0],
       facing: Math.PI / 2,
       bubbleLines: ['新鮮旺來鳳梨與壽桃塔喔🍍', '來挑選敬神鮮花水果吧！', '按 [E] 即可選購供品🛍️'],
       dialogues: [
@@ -539,16 +655,48 @@ export const TEMPLE_CONFIG = {
     shufen: {
       id: 'shufen',
       name: '奉茶姊姊淑芬',
-      title: '大榕樹板凳區暖心奉茶姊姊',
+      title: '正殿奉茶區志工',
       avatar: '👩',
-      presetId: 'elderFemale',
-      mode: 'sit',
-      position: [-11.55, 0.03, 13.94],
-      facing: 0,
-      bubbleLines: ['坐下來喝杯熱茶吧🍵', '下方聊天框打字會浮在頭頂喔！', '水池還能餵錦鯉魚喔🐟'],
+      presetId: 'middleFemale',
+      questId: 'q_pour_tea',
+      mode: 'stationary',
+      // ★ V36 淑芬移離牆角並與奉茶桌保持清爽間距 (-6.85, 0.37, 6.75)，面向殿門熱情招呼、絕不再誤點奉茶框！
+      position: [-6.85, 0.37, 6.75],
+      facing: Math.PI * 0.62,
+      bubbleLines: ['奉茶桌上有燒好的茶壺喔🍵', '來喝杯熱奉茶，也能提壺幫神明添茶！', '神桌清茶快見底了，能幫我添茶嗎？'],
       dialogues: [
-        '哈囉！走累了隨時來板凳喝杯奉茶～廟宇兩側跟後院樹蔭下的雙人長板凳都可以兩個人一起坐喔！',
-        '對了，新廟右側假山瀑布池裡有九尾七彩錦鯉，走過去按 [E] 還能親手灑飼料餵魚呢！'
+        '平安你好！我就在正殿左側奉茶區招呼大家～桌上這壺茶壺剛煮好熱茶，歡迎隨時提壺到神桌前幫神明敬奉清茶三杯喔！',
+        '拜完想歇腳的話，廟門外大榕樹下還有文雄伯跟阿忠哥在下象棋，右側假山瀑布池也能免費灑飼料餵錦鯉呢！'
+      ]
+    },
+    chessUncleA: {
+      id: 'chessUncleA',
+      name: '棋友文雄伯',
+      title: '大榕樹象棋桌・紅方棋手',
+      avatar: '👴',
+      presetId: 'elderMale',
+      mode: 'sit',
+      position: [-12.68, 0.03, 15.10],
+      facing: Math.PI / 2,
+      bubbleLines: ['將軍！這步炮打中卒看你怎麼擋 😆', '起手無回大丈夫喔，阿忠哥！', '下完這盤進殿拜五年千歲～'],
+      dialogues: [
+        '哈哈少年仔來看棋喔！我跟阿忠哥每天下午都會來德慈宮大榕樹下殺兩盤象棋，吹風喝淑芬的奉茶最爽快啦！',
+        '你看這張大理石棋桌多有味道，旁邊板凳還有空位，歡迎坐下來一起觀棋聊天！'
+      ]
+    },
+    chessUncleB: {
+      id: 'chessUncleB',
+      name: '棋友阿忠哥',
+      title: '大榕樹象棋桌・黑方棋手',
+      avatar: '👨',
+      presetId: 'middleMale',
+      mode: 'sit',
+      position: [-10.12, 0.03, 15.10],
+      facing: -Math.PI / 2,
+      bubbleLines: ['哎呀差點中計，跳馬解圍！', '文雄伯今天棋藝特別猛喔哈哈～', '廟前樹下邊下棋邊聞香火最療癒🍵'],
+      dialogues: [
+        '安安！文雄伯這步炮攻真犀利，害我差點被將死！還好我留了一步馬後炮～',
+        '德慈宮廟埕現在整理得超寬敞舒服，參拜完記得來找我們切磋閒聊喔！'
       ]
     },
     benchCompanion: {
@@ -624,19 +772,34 @@ export const TEMPLE_CONFIG = {
     grandmaWalk: {
       id: 'grandmaWalk',
       name: '花布阿嬤秀英',
-      title: '虔誠念佛的慈祥花布阿嬤',
+      title: '虔誠阿嬤（虎爺尋蛋委託）',
       avatar: '👵',
       presetId: 'elderFemale',
+      questId: 'q_tiger_egg',
       mode: 'patrol',
-      canSitOnMats: true,
-      preferredMats: [11, 14, 16, 18, 20],
+      canSitOnMats: false,
       waypoints: [
-        [-7.5, 20.0], [-16.0, 16.5], [-16.2, -15.5], [6.0, -16.2],
-        [0, 6.8], [0, 2.5], [4.0, 18.5]
+        [-6.2, 16.5], [-2.5, 17.5], [3.5, 16.5], [4.5, 13.5], [-3.8, 14.0]
       ],
-      bubbleLines: ['阿彌陀佛・闔家平安🙏', '太歲牆也能幫公司點燈喔！', '供品鋪的壽桃塔好喜氣！'],
+      bubbleLines: ['我想拜虎爺，忘了帶雞蛋🥚', '後埕的放山雞會生蛋喔！', '阿彌陀佛・闔家平安🙏'],
       dialogues: [
         '阿彌陀佛～平安順心！阿嬤剛剛去太歲牆幫兒子的公司行號點了一盞平安燈，長長的公司名字縮放排在紅紙上好清楚喔！'
+      ]
+    },
+    // ★ V1.1 新增：公佈欄旁「總幹事阿國」（向前移 1 格至 z = 13.8，完全不擋通道動線！）
+    director: {
+      id: 'director',
+      name: '總幹事阿國',
+      title: '玉勅代天府德慈宮廟務總幹事',
+      avatar: '🏮',
+      presetId: 'middleMale',
+      questId: 'q_night_patrol',
+      mode: 'stationary',
+      position: [8.85, 0.03, 13.8],
+      facing: -0.45,
+      bubbleLines: ['準備夜巡廟埕囉🌙', '幫我點右上角切換夜景巡視吧！', '德慈宮夜景燈火超壯觀✨'],
+      dialogues: [
+        '平安你好！我是德慈宮總幹事阿國，平常負責廟務公告與夜間巡守，有任何活動消息都在旁邊公佈欄喔！'
       ]
     },
     kidBoy: {
@@ -716,4 +879,95 @@ export const WORSHIP_STEPS = [
     short: '化金',
     hint: '前往廟宇右側「寶塔金爐」逐張化金祈福'
   }
+];
+
+// ★ V1.1 功德箱數位平安符目錄（100 功德求取）
+export const TALISMAN_CATALOG = [
+  {
+    id: 'guanyin_safe',
+    name: '觀音佛祖出入平安符',
+    shortName: '觀音平安符',
+    deity: '觀音佛祖',
+    emoji: '🌸',
+    cost: 100,
+    themeBg: '#164E3F',
+    desc: '觀音佛祖慈悲護佑，保佑出入平安、消災解厄、身心安泰。'
+  },
+  {
+    id: 'daitian_smooth',
+    name: '代天巡狩順遂符',
+    shortName: '代天順遂符',
+    deity: '代天巡狩',
+    emoji: '🏮',
+    cost: 100,
+    themeBg: '#8E1515',
+    desc: '代天巡狩王爺公威靈顯赫，庇佑事業順遂、闔家吉慶、貴人相助。'
+  }
+];
+
+// ★ V1.1 廟埕生活化每日任務（單次 30 秒內完成，每日自動重置）
+export const DAILY_QUESTS = [
+  {
+    id: 'q_incense_stubs',
+    npcId: 'keeper',
+    npcName: '廟公阿財伯',
+    npcAvatar: '👴',
+    title: '廟埕環境小幫手',
+    icon: '🧹',
+    reward: 10,
+    targetCount: 4,
+    introLine: '剛才風大吹落不少香腳，幫我撿 4 根廟埕地上的香腳回來吧！',
+    progressLine: '廟埕地上還有掉落的發光香腳喔，點擊撿滿 4 根再回來找阿財伯！',
+    completeLine: '真是太感謝你啦！廟埕乾乾淨淨神明最歡喜，這 +10 功德結緣禮送給你！',
+    doneLine: '今天的廟埕已經非常清淨囉！明天再麻煩小幫手幫忙巡視～'
+  },
+  {
+    id: 'q_pour_tea',
+    npcId: 'shufen',
+    npcName: '奉茶姊姊淑芬',
+    npcAvatar: '👩',
+    title: '正殿敬茶協助',
+    icon: '🍵',
+    reward: 15,
+    targetCount: 1,
+    introLine: '神桌上的清茶快見底了，去大殿左側「奉茶區」提茶壺幫神明添個清茶三杯吧！',
+    progressLine: '記得先進大殿左側「奉茶區」拿茶壺，再到神桌前倒清茶三杯喔！',
+    completeLine: '清茶醇香敬神明，真是誠心好孩子！這 +15 功德感謝你的幫忙！',
+    doneLine: '今天神桌上的清茶已經添滿囉，歇歇腳喝杯奉茶吧～'
+  },
+  {
+    id: 'q_tiger_egg',
+    npcId: 'grandmaWalk',
+    npcName: '花布阿嬤秀英',
+    npcAvatar: '👵',
+    title: '虎爺尋蛋委託',
+    icon: '🥚',
+    reward: 20,
+    targetCount: 1,
+    introLine: '我想拜虎爺求孫子好帶大，可是忘了帶雞蛋，你能幫我去廟後埕撿一顆新鮮土雞蛋獻給桌下虎爺嗎？',
+    progressLine: '走到廟宇後方草坪找放山母雞撿 1 顆發光土雞蛋，再進正殿獻給神桌下的虎爺喔！',
+    completeLine: '阿彌陀佛～虎爺公一定很開心！謝謝你幫忙，這 +20 功德請一定要收下！',
+    doneLine: '今天已經誠心幫阿嬤獻蛋給虎爺公囉，祝福你也平安順遂！'
+  },
+  {
+    id: 'q_night_patrol',
+    npcId: 'director',
+    npcName: '總幹事阿國',
+    npcAvatar: '🏮',
+    title: '廟埕夜巡巡視',
+    icon: '🌙',
+    reward: 15,
+    targetCount: 1,
+    introLine: '晚上準備夜巡了，幫我點擊右上角「🌙 切換夜景」巡視一下廟埕燈火吧！',
+    progressLine: '點擊右上角的「🌙 切換夜景」按鈕，巡視一下大廟夜景就可以回來回報囉！',
+    completeLine: '燈火輝煌、莊嚴又平安！辛苦協助夜巡，這 +15 功德送給你！',
+    doneLine: '今天的夜巡圓滿完成！晚上點燈後的德慈宮真的很美吧！'
+  }
+];
+
+// ★ V1.1 真人玩家雙向結緣互動動作
+export const PEER_EMOTES = [
+  { id: 'wave', label: '揮手打招呼', emoji: '👋', bubble: '嗨！你好呀 👋', replyText: '回揮招呼 👋' },
+  { id: 'salute', label: '雙手合十作揖', emoji: '🙏', bubble: '平安吉祥 🙏', replyText: '合十回禮 🙏' },
+  { id: 'handshake', label: '握手結緣', emoji: '🤝', bubble: '很高興認識你 🤝', replyText: '握手結緣 🤝' }
 ];
